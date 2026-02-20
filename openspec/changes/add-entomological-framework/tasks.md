@@ -1,9 +1,11 @@
 # Implementation Tasks
 
+> **NOTE**: The implementation follows a **tracer-bullet strategy**. See [tracer-bullet.md](./tracer-bullet.md) for the prioritized plan. Phases 0-6 of the tracer bullet (Stigmergy + Code Graph + Ant Forager + Orchestrator + Validation) are implemented first. The tasks below represent the full scope; only those covered by the tracer bullet are worked on initially. Remaining patterns (Bee, Termite, Wasp) are gated on the go/no-go decision at the end of Phase 6.
+
 ## 1. Project Foundation
 
-- [ ] 1.1 Create directory structure (`bichos/`, `tests/`, `examples/`, `docs/`)
-- [ ] 1.2 Create `pyproject.toml` with dependencies (PydanticAI, diskcache, Loguru, NetworkX, radon)
+- [ ] 1.1 Create directory structure (`src/bichos/`, `tests/`, `examples/`, `docs/`)
+- [ ] 1.2 Create `pyproject.toml` with dependencies (PydanticAI, diskcache, Loguru, NetworkX, radon, Click)
 - [ ] 1.3 Set up package `__init__.py` files with version and exports
 - [ ] 1.4 Configure Loguru with structured logging and file rotation
 - [ ] 1.5 Create `.gitignore` for Python artifacts and pheromone cache
@@ -62,7 +64,7 @@
   - [ ] `BugReport` model
 - [ ] 4.2 Create `bichos/agents/ant/agent.py` with PydanticAI agent
   - [ ] Define forager agent with system prompt
-  - [ ] Set model to `openai:gpt-4` (configurable)
+  - [ ] Set model to `openai:gpt-4o` (configurable)
 - [ ] 4.3 Implement ant tools in `bichos/agents/ant/tools.py`
   - [ ] `@agent.tool choose_next_function()` with ACO probability
   - [ ] `@agent.tool analyze_code_path()` for deep inspection

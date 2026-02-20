@@ -56,6 +56,34 @@ Key biological concepts being digitalized:
                 └───────────────────┘
 ```
 
+## Execution Model
+
+All agent concurrency uses Python's `asyncio` event loop on a single thread. This is the foundational concurrency decision that affects all other components.
+
+### Agent Execution
+- Each agent run is an `asyncio.Task` created via `asyncio.gather()`
+- The Hive Orchestrator's `SplitNode.run()` method calls `asyncio.gather(*agent_tasks)` to run all agents concurrently
+- This uses the **stable** pydantic_graph API (class-based nodes), not the beta function-based API
+- pydantic_graph provides the high-level workflow (Init -> Split -> Join -> Report); parallelism is plain asyncio inside a single node
+
+### Shared State Concurrency
+- All agents share a single `diskcache.Cache` instance passed via PydanticAI Deps
+- diskcache provides built-in file-level locking for concurrent access (thread-safe and process-safe)
+- Pheromone read-modify-write operations (reinforcement) use diskcache's `transact()` context manager for atomicity
+- The NetworkX code graph is read-only during agent execution (built once during QueenNode init), so no locking needed
+
+### LLM API Rate Limiting
+- An `asyncio.Semaphore(max_concurrent_llm_calls)` gates all LLM API calls across the swarm
+- Default: 10 concurrent calls (configurable via `HiveConfig.max_concurrent_llm_calls`)
+- Prevents overwhelming provider rate limits when running 23+ agents
+- Each agent acquires the semaphore before calling `agent.run()` and releases after
+
+### Error Isolation
+- Each agent task is wrapped in try/except within `asyncio.gather(return_exceptions=True)`
+- Failed agents are logged with full traceback, marked as `degraded`, and excluded from final metrics
+- The swarm continues with remaining agents; the report includes a `degraded_agents` count
+- Agent timeout is enforced via `asyncio.wait_for(agent_task, timeout=config.agent_timeout)`
+
 ## Key Decisions
 
 ### Decision 1: diskcache over Redis for Pheromone Storage
@@ -373,6 +401,30 @@ class AdaptiveACO:
 **Target Performance (V2):**
 - 100K LOC in < 30 minutes (vs V1: ~90 minutes)
 - 1M LOC in < 4 hours (via partitioning)
+
+## False Positive Mitigation Strategy
+
+LLM-powered agents will produce false positives. Without mitigation, false pheromones pollute the grid and waste swarm attention. The framework addresses this at four levels:
+
+### Level 1: Confidence Gating (Per-Agent)
+- Each agent finding includes a `confidence` score (0.0-1.0)
+- Pheromone deposition requires confidence >= `confidence_threshold` (default 0.5)
+- Findings below threshold are logged but don't influence swarm navigation
+
+### Level 2: Severity Threshold (Per-Agent)
+- Bug severity < 3 (informational) does not deposit pheromones
+- Performance latency below `latency_threshold` (default 100ms) does not deposit pheromones
+- Curvature below `deposit_threshold` (default 5.0) does not deposit pheromones
+
+### Level 3: Natural Decay (Stigmergy)
+- Unconfirmed findings (deposited once, never reinforced) decay exponentially
+- Half-life of ~7 iterations at default ρ=0.1 means isolated false positives vanish naturally
+- Only findings confirmed by multiple agents accumulate significant pheromone intensity
+
+### Level 4: Deterministic Validation (Hybrid)
+- Termite proposals are validated against deterministic metrics (radon, NetworkX) not just LLM reasoning
+- Wasp findings can optionally use quorum sensing (3+ models must agree)
+- Bee measurements use statistical outlier rejection (>3σ excluded)
 
 ## Risks / Trade-offs
 

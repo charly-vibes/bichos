@@ -14,11 +14,12 @@ The system SHALL use pydantic_graph to coordinate multi-phase analysis workflows
 - **AND** JoinNode aggregates results
 - **AND** transitions to ReportNode
 
-#### Scenario: Parallel agent execution
+#### Scenario: Parallel agent execution via asyncio.gather
 - **WHEN** SplitNode is executed
-- **THEN** ant, bee, termite, wasp agents run concurrently
-- **AND** each operates independently via asyncio
-- **AND** all complete before transition to JoinNode
+- **THEN** ant, bee, termite, wasp agents run concurrently via asyncio.gather() within a single pydantic_graph node
+- **AND** each agent is an asyncio task sharing the event loop
+- **AND** all complete (or timeout) before transition to JoinNode
+- **NOTE** Uses stable pydantic_graph API (not beta parallel API). Parallelism is achieved via asyncio.gather() inside the SplitNode's run() method, not via pydantic_graph's node-level parallelism
 
 ### Requirement: Queen Node Initialization
 The system SHALL initialize analysis resources and configuration via Queen node.
@@ -186,12 +187,19 @@ The system SHALL handle failures without crashing the entire analysis.
 #### Scenario: Single agent failure doesn't stop swarm
 - **WHEN** 1 ant agent crashes
 - **THEN** other 9 ants continue working
-- **AND** final report notes partial results
+- **AND** final report notes partial results with degraded_agents count
+- **AND** coverage metrics are adjusted to reflect reduced agent count
 
 #### Scenario: LLM API failure retries
 - **WHEN** LLM API returns 429 (rate limit)
-- **THEN** request is retried with exponential backoff
+- **THEN** request is retried with exponential backoff (max 3 retries)
 - **AND** agent pauses before retry
+
+#### Scenario: Rate limiting across agent swarm
+- **WHEN** multiple agents issue LLM API calls concurrently
+- **THEN** an asyncio.Semaphore limits concurrent API calls (default: 10)
+- **AND** prevents overwhelming LLM provider rate limits
+- **AND** semaphore size is configurable via HiveConfig
 
 #### Scenario: Cache corruption recovery
 - **WHEN** pheromone cache file is corrupted

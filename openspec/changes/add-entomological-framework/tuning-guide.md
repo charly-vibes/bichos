@@ -72,7 +72,8 @@ What do you want to optimize?
 **ρ (Rho) - Evaporation Rate**
 - Controls how quickly pheromones decay
 - Range: 0.01 - 0.9
-- Default: 0.1
+- Global default: 0.1 (overridden by per-type defaults below)
+- Per-type defaults: bug=0.1, performance=0.5, curvature=0.05, alert=0.3
 
 ### Parameter Effects
 
@@ -225,7 +226,7 @@ performance:
 **Solution:**
 ```yaml
 detection:
-  confidence_threshold: 0.8  # Increase threshold (default 0.7)
+  confidence_threshold: 0.8  # Increase threshold (default 0.5)
 
 wasp:
   quorum_size: 5       # Require more agents to agree (default 1)
@@ -263,7 +264,7 @@ bichos analyze /repo
 
 ```yaml
 ant:
-  model: "openai:gpt-4"         # Model for reasoning
+  model: "openai:gpt-4o"        # Model for reasoning
   max_path_depth: 50            # Max functions to explore per path
   bug_severity_threshold: 5     # Only report bugs >= severity 5
   aco:
@@ -392,7 +393,7 @@ pheromone_decay:
 
 # LLM models
 models:
-  ant: "openai:gpt-4"
+  ant: "openai:gpt-4o"
   bee: "openai:gpt-3.5-turbo"
   termite: "anthropic:claude-3-5-sonnet"
   wasp: "google:gemini-1.5-pro"

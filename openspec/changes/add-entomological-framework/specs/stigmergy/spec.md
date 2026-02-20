@@ -41,8 +41,9 @@ The system SHALL implement Ant Colony Optimization pheromone update rules with e
 - **THEN** the new intensity is 90.0 (100.0 * (1 - 0.1))
 
 #### Scenario: Reinforcement increases intensity
-- **WHEN** a bug is found and Δτ=50.0 is deposited on existing pheromone (τ=60.0)
-- **THEN** the new intensity is 54.0 + 50.0 = 104.0 (capped at 100.0)
+- **WHEN** a bug is found and Δτ=50.0 is deposited on existing pheromone (τ=60.0) with ρ=0.1
+- **THEN** evaporation gives (1-0.1) × 60.0 = 54.0, plus reinforcement 54.0 + 50.0 = 104.0
+- **AND** intensity is capped at max_intensity (100.0), so final value is 100.0
 
 #### Scenario: Configurable evaporation rates per type
 - **WHEN** bug pheromones have ρ=0.01 and performance pheromones have ρ=0.5

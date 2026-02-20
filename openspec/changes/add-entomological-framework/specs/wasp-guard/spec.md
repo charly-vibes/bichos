@@ -45,7 +45,7 @@ The system SHALL propagate security alerts through pheromone deposition and stru
 
 #### Scenario: Release alarm for critical threat
 - **WHEN** threat_level > 7
-- **THEN** alert pheromone is deposited with intensity = threat_level * 10
+- **THEN** alert pheromone is deposited with intensity = threat_level * 5
 - **AND** Loguru error log is created with tags ["security", "wasp_alarm", "defcon_1"]
 
 #### Scenario: Alarm attracts more guard wasps
@@ -81,7 +81,7 @@ The system SHALL provide a tool for broadcasting security alerts.
 
 #### Scenario: Deposit alarm pheromone
 - **WHEN** release_alarm_pheromone(verdict, source_ip) is called with threat_level=9
-- **THEN** alert pheromone is deposited with intensity 90.0
+- **THEN** alert pheromone is deposited with intensity 45.0
 - **AND** TTL is set to 24 hours
 
 #### Scenario: Structured logging for alerting
@@ -112,22 +112,28 @@ The system SHALL provide a tool for static security analysis of code.
 - **THEN** vulnerability is flagged with type="missing_auth"
 - **AND** severity is set to 8
 
-### Requirement: Quorum Sensing for Consensus
-The system SHALL use multiple guard agents with different models to reduce false positives.
+### Requirement: Quorum Sensing for Consensus (Opt-In)
+The system SHALL optionally use multiple guard agents with different models to reduce false positives. Quorum sensing is disabled by default (single model) due to cost multiplier (~5x per security check). Enable via `wasp.quorum_sensing: true` in config.
 
-#### Scenario: Spawn 5 guard wasps
-- **WHEN** critical input needs validation
-- **THEN** 5 wasp agents are spawned with different models (GPT-4, Claude, Gemini, Llama, etc.)
+#### Scenario: Default single-model analysis
+- **WHEN** quorum_sensing is disabled (default)
+- **THEN** single wasp agent returns SecurityVerdict
+- **AND** confidence is based on single model's reasoning
+
+#### Scenario: Opt-in quorum with 3 guard wasps
+- **WHEN** quorum_sensing is enabled with quorum_size=3
+- **THEN** 3 wasp agents are spawned (using configured model + 2 alternates)
 - **AND** each returns independent SecurityVerdict
+- **AND** cost is ~3x single-model analysis
 
-#### Scenario: Quorum requires 3/5 agreement
-- **WHEN** verdicts are [unsafe, unsafe, unsafe, safe, safe]
-- **THEN** quorum consensus is "unsafe" (3/5)
+#### Scenario: Quorum requires majority agreement
+- **WHEN** verdicts are [unsafe, unsafe, safe]
+- **THEN** quorum consensus is "unsafe" (2/3 majority)
 - **AND** action is taken based on majority vote
 
 #### Scenario: Quorum reduces false positives
 - **WHEN** one model hallucinates a threat
-- **AND** other 4 models mark input as safe
+- **AND** other 2 models mark input as safe
 - **THEN** quorum overrides single false positive
 - **AND** improves reliability
 

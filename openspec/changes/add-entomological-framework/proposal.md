@@ -40,7 +40,7 @@ This change introduces the complete Entomological Codebase framework with the fo
 
 ### Affected Code
 This is a greenfield implementation creating:
-- `bichos/` - Main package directory
+- `src/bichos/` - Main package directory (src-layout)
   - `agents/{ant,bee,termite,wasp}/` - Agent implementations
   - `stigmergy/` - Pheromone grid and state management
   - `graph/` - Code graph and orchestration
@@ -78,31 +78,42 @@ None - this is initial implementation.
 11. **Deterministic**: Reproducible results with fixed random seeds for testing
 12. **Tunable**: Users can optimize parameters via configuration guide
 
+## Implementation Strategy: Tracer Bullet
+
+Rather than implementing all 13 phases simultaneously, the project follows a **tracer-bullet approach**: build a thin end-to-end slice (Stigmergy + Code Graph + Ant Forager + Minimal Orchestrator + CLI) first, validate the core thesis with benchmarks, then build remaining patterns incrementally.
+
+See **[tracer-bullet.md](./tracer-bullet.md)** for the detailed plan with go/no-go criteria.
+
 ## Supporting Documentation
 
 This proposal includes comprehensive supporting materials:
 
-1. **[design.md](./design.md)** - Technical architecture with 8 key decisions including:
+1. **[tracer-bullet.md](./tracer-bullet.md)** - Tracer-bullet implementation plan:
+   - 6 phases over ~12 days for core validation
+   - Go/no-go decision point with empirical benchmarks
+   - ACO vs random comparison, precision/recall, cost analysis
+
+2. **[design.md](./design.md)** - Technical architecture with 8 key decisions including:
    - diskcache over Redis (lightweight, no external deps)
    - Loguru over Logfire (zero-config observability)
    - Pheromone data models and ACO mathematics
    - Scaling strategy for large codebases (partitioning, multi-language support)
 
-2. **[cost-analysis.md](./cost-analysis.md)** - Token usage and ROI analysis:
+3. **[cost-analysis.md](./cost-analysis.md)** - Token usage and ROI analysis:
    - Per-agent cost estimates: $0.621 per analysis cycle
    - 10K LOC analysis: $12-18 (vs $30-50 for single GPT-4 agent)
    - 89% token reduction vs message-passing frameworks
    - Benchmark dataset: 10 open-source repos + synthetic bugs
    - Performance targets and validation metrics
 
-3. **[tuning-guide.md](./tuning-guide.md)** - User optimization guide:
+4. **[tuning-guide.md](./tuning-guide.md)** - User optimization guide:
    - ACO parameter effects (α, β, ρ) with visual examples
    - Swarm sizing by codebase size and analysis focus
    - Common tuning scenarios with solutions
    - Complete configuration file reference
    - Monitoring and iteration best practices
 
-4. **[tasks.md](./tasks.md)** - Implementation roadmap:
+5. **[tasks.md](./tasks.md)** - Implementation roadmap:
    - 13 phases, 100+ granular tasks
    - Includes benchmarking, validation, and documentation
    - Property-based tests for ACO correctness

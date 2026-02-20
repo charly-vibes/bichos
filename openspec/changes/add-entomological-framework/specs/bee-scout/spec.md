@@ -8,12 +8,13 @@ The system SHALL use structured Pydantic models to communicate performance data 
 #### Scenario: Scout reports endpoint performance
 - **WHEN** scout probes endpoint "/api/users"
 - **THEN** WaggleDance model contains endpoint_url, average_latency_ms, throughput_rps, error_rate
-- **AND** profitability is calculated as latency * (1 + error_rate)
+- **AND** investigation_priority is calculated as latency * (1 + error_rate)
 
-#### Scenario: High latency equals high profitability
+#### Scenario: High latency equals high investigation priority
 - **WHEN** endpoint has 500ms latency and 0.1 error rate
-- **THEN** profitability is 550.0 (500 * 1.1)
+- **THEN** investigation_priority is 550.0 (500 * 1.1)
 - **AND** more forager bees are recruited to stress test this endpoint
+- **NOTE** Higher priority = worse performance = needs more investigation (inverted from bee biology where "profitability" means good food; here "priority" means problematic code)
 
 ### Requirement: Endpoint Probing
 The system SHALL measure latency and throughput of code execution paths or API endpoints.
@@ -37,19 +38,19 @@ The system SHALL measure latency and throughput of code execution paths or API e
 The system SHALL allocate forager bees proportionally to endpoint profitability (latency).
 
 #### Scenario: Proportional allocation
-- **WHEN** 3 endpoints have profitability [100, 300, 600]
+- **WHEN** 3 endpoints have investigation_priority [100, 300, 600]
 - **AND** total swarm size is 10 bees
 - **THEN** allocation is [1, 3, 6] bees respectively
 - **AND** slowest endpoint gets most load testing
 
 #### Scenario: Minimum exploration for stable endpoints
-- **WHEN** endpoint has profitability 0 (perfect performance)
+- **WHEN** endpoint has investigation_priority 0 (perfect performance)
 - **THEN** at least 1 bee is still allocated
 - **AND** ensures monitoring of all endpoints
 
 #### Scenario: Roulette wheel selection
-- **WHEN** bee recruitment uses random.choices() with profitability weights
-- **THEN** higher profitability increases selection probability
+- **WHEN** bee recruitment uses random.choices() with investigation_priority weights
+- **THEN** higher priority increases selection probability
 - **AND** maintains stochastic element for exploration
 
 ### Requirement: Agent Tool: probe_endpoint
@@ -88,7 +89,7 @@ The system SHALL provide a tool for aggregating waggle dance reports into perfor
 
 #### Scenario: Identify top 5 bottlenecks
 - **WHEN** performance report is generated
-- **THEN** endpoints are ranked by profitability
+- **THEN** endpoints are ranked by investigation_priority
 - **AND** top 5 slowest endpoints are highlighted
 
 ### Requirement: Scout Agent Configuration
@@ -103,6 +104,24 @@ The system SHALL configure bee agents with fast, cost-effective LLM models.
 - **WHEN** forager bee is spawned for load testing
 - **THEN** it uses same or faster model
 - **AND** minimizes latency overhead of LLM calls
+
+### Requirement: False Positive Mitigation
+The system SHALL reduce false performance findings through repeated measurement and statistical validation.
+
+#### Scenario: Minimum probe iterations before reporting
+- **WHEN** scout probes endpoint fewer than 3 times
+- **THEN** no performance pheromone is deposited
+- **AND** results are marked as "insufficient_data"
+
+#### Scenario: Statistical outlier rejection
+- **WHEN** 1 out of 10 probes shows anomalous latency (> 3 standard deviations)
+- **THEN** outlier is excluded from average calculation
+- **AND** prevents transient spikes from triggering false alarms
+
+#### Scenario: Minimum latency threshold for pheromone deposition
+- **WHEN** average latency is below latency_threshold (default 100ms)
+- **THEN** no performance pheromone is deposited
+- **AND** endpoint is considered healthy
 
 ### Requirement: Performance Pheromone Decay
 The system SHALL use short TTL for performance pheromones to reflect transient nature of latency.

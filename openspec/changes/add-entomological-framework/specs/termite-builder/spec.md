@@ -100,21 +100,22 @@ The system SHALL provide a tool for generating refactoring suggestions.
 - **AND** list of affected files and tests to run
 
 ### Requirement: Agent Tool: verify_structure
-The system SHALL provide a tool for validating refactoring proposals.
+The system SHALL provide a tool for validating refactoring proposals against simulated ASTs. Since the system is read-only, the "after" AST is a hypothetical AST constructed from the proposed refactoring plan, not from actual code modification. The tool generates the after-AST by applying proposed transformations (extract method, move class) to a copy of the original AST in memory.
 
 #### Scenario: Verify refactoring reduces complexity
-- **WHEN** verify_structure(before_ast, after_ast) is called
-- **THEN** complexity of after_ast is lower than before_ast
+- **WHEN** verify_structure(before_ast, simulated_after_ast) is called
+- **THEN** complexity of simulated_after_ast is lower than before_ast
 - **AND** verification passes
 
-#### Scenario: Verify refactoring maintains functionality
-- **WHEN** refactoring is verified
-- **THEN** all existing imports still resolve
-- **AND** no new syntax errors are introduced
+#### Scenario: Verify refactoring maintains structural integrity
+- **WHEN** simulated after-AST is verified
+- **THEN** all existing imports still resolve in the simulated structure
+- **AND** no new syntax errors are introduced in the simulated AST
+- **AND** no actual source files are modified (read-only)
 
 #### Scenario: Verification failure aborts refactoring
-- **WHEN** verification fails (complexity increased)
-- **THEN** refactoring proposal is rejected
+- **WHEN** verification fails (complexity increased or structural errors)
+- **THEN** refactoring proposal is rejected with reason
 - **AND** agent backtracks to explore different module
 
 ### Requirement: Builder Agent Configuration
@@ -144,6 +145,24 @@ The system SHALL enable multiple termite agents to collectively smooth architect
 - **AND** enforce local rules (low coupling, high cohesion)
 - **THEN** overall architectural consistency improves
 - **AND** curvature pheromones decay as issues are resolved
+
+### Requirement: False Positive Mitigation
+The system SHALL reduce false architectural findings through deterministic validation and threshold gating.
+
+#### Scenario: Curvature threshold gates pheromone deposition
+- **WHEN** measured curvature is below deposit_threshold (default 5.0)
+- **THEN** no curvature pheromone is deposited
+- **AND** module is considered architecturally healthy
+
+#### Scenario: Deterministic metrics validate LLM suggestions
+- **WHEN** termite proposes a refactoring based on LLM reasoning
+- **THEN** the proposal is validated against deterministic metrics (radon complexity, NetworkX cycle detection)
+- **AND** proposals not supported by metric evidence are downgraded to "suggestion" severity
+
+#### Scenario: Duplicate detection across termites
+- **WHEN** two termites propose the same refactoring for the same module
+- **THEN** proposals are deduplicated at aggregation time
+- **AND** confidence is increased for independently confirmed findings
 
 ### Requirement: Read-Only Analysis
 The system SHALL only propose refactorings without modifying code.

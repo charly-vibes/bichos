@@ -28,7 +28,7 @@ The system SHALL detect potential bugs through code analysis and report them via
 #### Scenario: Detect missing None check
 - **WHEN** ant analyzes code path with potential None dereference
 - **THEN** bug report is created with severity 7, location, and description
-- **AND** pheromone is deposited with intensity = severity * 10
+- **AND** pheromone is deposited with intensity = severity * 5
 
 #### Scenario: Detect race condition
 - **WHEN** ant finds unsynchronized access to shared state
@@ -73,7 +73,7 @@ The system SHALL provide a tool for ACO-based function selection.
 
 #### Scenario: Tool accesses pheromone cache via Deps
 - **WHEN** tool retrieves pheromone levels for neighbors
-- **THEN** it uses ctx.deps.redis_client.get_pheromone()
+- **THEN** it uses ctx.deps.pheromone_cache.get_pheromone()
 - **AND** defaults to 0.1 if no pheromone exists
 
 ### Requirement: Agent Tool: analyze_code_path
@@ -94,7 +94,7 @@ The system SHALL provide a tool for depositing bug pheromones.
 
 #### Scenario: Deposit bug pheromone with severity
 - **WHEN** report_bug("auth.py:42", "Missing None check", severity=7) is called
-- **THEN** pheromone with intensity 70.0 is deposited
+- **THEN** pheromone with intensity 35.0 is deposited
 - **AND** structured log entry is created
 
 #### Scenario: Attract more ants to buggy area
@@ -107,7 +107,7 @@ The system SHALL configure ant agents with appropriate LLM models and system pro
 
 #### Scenario: Agent uses high-reasoning model
 - **WHEN** forager agent is initialized
-- **THEN** it uses `openai:gpt-4` (or configured equivalent)
+- **THEN** it uses `openai:gpt-4o` (or configured equivalent)
 - **AND** system prompt instructs it to find bugs via path exploration
 
 #### Scenario: Agent has access to code graph
@@ -133,6 +133,30 @@ The system SHALL spawn multiple ant agents that coordinate via pheromones withou
 - **AND** some paths have no pheromones (unexplored)
 - **THEN** probabilistic selection ensures both are visited
 - **AND** system avoids local optima
+
+### Requirement: False Positive Mitigation
+The system SHALL reduce false positive bug reports through confidence thresholds and pheromone gating.
+
+#### Scenario: Confidence threshold gates pheromone deposition
+- **WHEN** bug is detected with confidence < 50%
+- **THEN** no pheromone is deposited
+- **AND** finding is logged as "low_confidence" for review but does not attract other agents
+
+#### Scenario: Minimum severity for pheromone deposition
+- **WHEN** bug severity is < 3 (informational)
+- **THEN** pheromone intensity is set to 0 (no deposition)
+- **AND** finding is included in report but does not influence swarm navigation
+
+#### Scenario: Pheromone decay naturally cleans false positives
+- **WHEN** a false bug pheromone is deposited
+- **AND** no other agents confirm the finding (no reinforcement)
+- **THEN** pheromone decays to near-zero within half-life iterations
+- **AND** swarm attention naturally moves away
+
+#### Scenario: Configurable confidence threshold
+- **WHEN** user sets `ant.confidence_threshold: 0.8` in config
+- **THEN** only findings with >= 80% confidence deposit pheromones
+- **AND** default is 0.5 (50%)
 
 ### Requirement: Performance Optimization
 The system SHALL minimize LLM token usage through efficient context management.

@@ -1,0 +1,76 @@
+# bichos
+
+> Bio-Mimetic Framework for Agentic Software Quality Assurance
+
+bichos (Spanish: "bugs/insects") is a Python 3.11+ framework that applies swarm
+intelligence principles from eusocial insect colonies to autonomous codebase analysis.
+
+## Core Concept
+
+Instead of a single omniscient agent, bichos deploys specialized agent swarms that
+coordinate through stigmergy — indirect communication via shared environment state
+(digital pheromones) — to detect bugs, optimize performance, refactor architecture,
+and audit security. Stigmergy reduces inter-agent token usage by ~80% vs. message-passing.
+
+## Agent Castes
+
+Four agent types, each inspired by a different insect:
+
+- **Ant (Forager)**: Bug detection via pheromone-guided stochastic path exploration (ACO)
+- **Bee (Scout)**: Performance testing using waggle dance proportional recruitment
+- **Termite (Builder)**: Architecture refactoring via curvature-based stigmergic construction
+- **Wasp (Guard)**: Security auditing using chemical profiling and quorum sensing consensus
+
+All castes are coordinated by a **Hive Orchestrator** using pydantic_graph state machines.
+
+## Pheromone System
+
+Agents communicate by reading/writing time-decaying pheromone signals in a shared cache:
+
+- Bug trails: `bug:path:{hash}` → Severity, Bug ID (TTL: 7 days)
+- Architecture: `arch:complexity:{module}` → Complexity Score (TTL: 30 days)
+- Performance: `perf:endpoint:{url}` → Latency ms (TTL: 1 hour)
+- Security: `sec:vuln:{type}` → CVSS Score (TTL: 14 days)
+
+Decay formula: τ(t+1) = (1-ρ) * τ(t) + Δτ
+
+## Tech Stack
+
+- **Agent Framework**: PydanticAI with pydantic_graph orchestration
+- **LLM Providers**: OpenAI (GPT-4), Anthropic (Claude), Google (Gemini)
+- **Pheromone Grid**: diskcache (in-memory/disk, TTL decay)
+- **Observability**: Loguru (structured tracing)
+- **Code Analysis**: Python AST, radon (complexity), NetworkX (call graphs)
+- **Package Management**: uv
+- **Linting/Formatting**: ruff + black (line length: 100)
+
+## Project Status
+
+Proposal phase. All specifications live in `openspec/changes/add-entomological-framework/`.
+Implementation begins after OpenSpec approval.
+
+## Key Files
+
+- `openspec/changes/add-entomological-framework/proposal.md` — Why and what
+- `openspec/changes/add-entomological-framework/design.md` — Technical architecture decisions
+- `openspec/changes/add-entomological-framework/tasks.md` — 13-phase, 100+ task implementation plan
+- `openspec/project.md` — Code conventions and constraints
+- `research.md` — Theoretical foundation (swarm intelligence, ACO, 30+ papers)
+
+## Specifications
+
+- `specs/stigmergy/` — Pheromone system (8 requirements, 30+ scenarios)
+- `specs/ant-forager/` — Bug detection (9 requirements)
+- `specs/bee-scout/` — Performance testing (9 requirements)
+- `specs/termite-builder/` — Architecture analysis (11 requirements)
+- `specs/wasp-guard/` — Security auditing (10 requirements)
+- `specs/hive-orchestrator/` — Coordination (13 requirements)
+
+## Conventions
+
+- Conventional commits: `feat:`, `fix:`, `refactor:`, `docs:`, `test:`
+- OpenSpec-driven development: proposals before any implementation
+- All data structures use Pydantic models with type hints
+- Google-style docstrings
+- Property-based testing for ACO algorithms (hypothesis)
+- Dogfooding: bichos will analyze the bichos codebase itself

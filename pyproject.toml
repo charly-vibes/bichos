@@ -1,0 +1,63 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "bichos"
+version = "0.1.0"
+description = "Bio-Mimetic Framework for Agentic Software QA"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+keywords = ["qa", "testing", "swarm", "agents", "ai", "bio-mimetic"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Testing",
+]
+dependencies = [
+    "pydantic-ai>=0.0.1",
+    "diskcache>=5.6",
+    "loguru>=0.7",
+    "radon>=6.0",
+    "networkx>=3.0",
+    "typer>=0.12",
+]
+
+[project.urls]
+Homepage = "https://github.com/charly-vibes/bichos"
+Repository = "https://github.com/charly-vibes/bichos"
+Issues = "https://github.com/charly-vibes/bichos/issues"
+
+[project.scripts]
+bichos = "bichos.cli:app"
+
+[tool.uv]
+dev-dependencies = [
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+    "pytest-asyncio>=0.23",
+    "ruff>=0.5",
+    "mypy>=1.10",
+]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

@@ -1,0 +1,118 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python ${{ matrix.python-version }}
+        run: uv python install ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: uv sync --all-extras
+
+      - name: Run tests
+        run: uv run pytest --tb=short
+
+  publish:
+    name: Publish to PyPI
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write  # required for PyPI trusted publishing
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+
+      - name: Build package
+        run: uv build
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: dist/*
+
+      # Update Homebrew formula in homebrew-charly tap
+      - name: Update Homebrew formula
+        env:
+          TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          TARBALL_URL="https://github.com/charly-vibes/bichos/archive/refs/tags/${GITHUB_REF_NAME}.tar.gz"
+          SHA256=$(curl -sL "$TARBALL_URL" | sha256sum | awk '{print $1}')
+
+          git clone "https://x-access-token:${TAP_GITHUB_TOKEN}@github.com/charly-vibes/homebrew-charly.git" /tmp/homebrew-charly
+
+          cat > /tmp/homebrew-charly/Formula/bichos.rb << FORMULA
+          class Bichos < Formula
+            include Language::Python::Virtualenv
+
+            desc "Bio-Mimetic Framework for Agentic Software QA"
+            homepage "https://github.com/charly-vibes/bichos"
+            url "https://github.com/charly-vibes/bichos/archive/refs/tags/v${VERSION}.tar.gz"
+            sha256 "${SHA256}"
+            license "MIT"
+
+            depends_on "python@3.12"
+
+            def install
+              virtualenv_install_with_resources
+            end
+
+            test do
+              system bin/"bichos", "--version"
+            end
+          end
+          FORMULA
+
+          cd /tmp/homebrew-charly
+          git config user.email "noreply@github.com"
+          git config user.name "GitHub Actions"
+          git add Formula/bichos.rb
+          git diff --cached --quiet || git commit -m "chore: update bichos to ${VERSION}"
+          git push
+
+      # Update Scoop manifest in scoop-charly bucket
+      - name: Update Scoop manifest
+        env:
+          TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          WHEEL=$(ls dist/bichos-*.whl | head -1)
+          WHEEL_NAME=$(basename "$WHEEL")
+          WHEEL_SHA=$(sha256sum "$WHEEL" | awk '{print $1}')
+          WHEEL_URL="https://github.com/charly-vibes/bichos/releases/download/${GITHUB_REF_NAME}/${WHEEL_NAME}"
+
+          git clone "https://x-access-token:${TAP_GITHUB_TOKEN}@github.com/charly-vibes/scoop-charly.git" /tmp/scoop-charly
+
+          jq \
+            --arg v "$VERSION" \
+            --arg url "$WHEEL_URL" \
+            --arg hash "sha256:$WHEEL_SHA" \
+            '.version = $v | .url = $url | .hash = $hash | .autoupdate.url = $url' \
+            /tmp/scoop-charly/bucket/bichos.json > /tmp/bichos-updated.json
+          mv /tmp/bichos-updated.json /tmp/scoop-charly/bucket/bichos.json
+
+          cd /tmp/scoop-charly
+          git config user.email "noreply@github.com"
+          git config user.name "GitHub Actions"
+          git add bucket/bichos.json
+          git diff --cached --quiet || git commit -m "chore: update bichos to ${VERSION}"
+          git push

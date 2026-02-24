@@ -192,3 +192,53 @@ _Last reflected: 2026-02-24 · 1 session analyzed_
 - NEVER stop before pushing - that leaves work stranded locally
 - NEVER say "ready to push when you are" - YOU must push
 - If push fails, resolve and retry until it succeeds
+
+---
+
+## Autonomous Build Guide
+
+This project is built autonomously — one tracer-bullet phase per session.
+
+### Session Start
+
+```bash
+wai status       # orient
+bd ready         # pick lowest-ID unblocked issue
+bd show <id>     # read full details
+```
+
+### Implementation Reference
+
+| Phase | Beads ID | Spec Location |
+|-------|----------|---------------|
+| 0: Project Skeleton | bichos-zrt | tracer-bullet.md § Phase 0 |
+| 1: Stigmergy System | bichos-40z | tracer-bullet.md § Phase 1 |
+| 2: Code Graph Builder | bichos-iz2 | tracer-bullet.md § Phase 2 |
+| 3: ACO Mathematics | bichos-6dk | tracer-bullet.md § Phase 3 |
+| 4: Ant Forager Agent | bichos-uf8 | tracer-bullet.md § Phase 4 |
+| 5: Hive Orchestrator | bichos-ozx | tracer-bullet.md § Phase 5 |
+| 6: Validation & Benchmark | bichos-zs5 | tracer-bullet.md § Phase 6 |
+
+Phases 1, 2, 3 are independent and can run in parallel once Phase 0 is closed.
+
+All spec files: `openspec/changes/add-entomological-framework/`
+
+### Key Constraints
+
+- **Layout**: `src/bichos/` (src-layout)
+- **Package manager**: `uv` — use `uv run pytest`, `uv sync`
+- **Type safety**: type hints on all public APIs, Pydantic for all agent I/O
+- **Pheromone cap**: intensity always in [0.0, 100.0]
+- **Tests**: unit tests always; integration tests needing API keys → `@pytest.mark.slow`
+- **No external infra**: no Redis, Docker, or cloud services required
+- **Quality gate**: `just check` must pass before committing
+
+### Session End
+
+```bash
+just check                        # lint + typecheck + test
+bd close <id>                     # mark phase complete
+wai handoff create bichos         # save context
+bd sync --from-main               # pull beads updates
+git add <files> && git commit -m "feat: Phase N — <title>"
+```

@@ -37,6 +37,7 @@ This change introduces the complete Entomological Codebase framework with the fo
 - **NEW**: wasp-guard (security auditing pattern)
 - **NEW**: stigmergy (coordination infrastructure)
 - **NEW**: hive-orchestrator (workflow orchestration)
+- **NEW**: cli (installable command-line interface)
 
 ### Affected Code
 This is a greenfield implementation creating:

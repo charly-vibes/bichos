@@ -84,6 +84,7 @@ Where ρ is evaporation rate (0-1) and Δτ is reinforcement based on bug severi
 - AST parsing (built-in Python ast module)
 - radon for cyclomatic complexity
 - NetworkX for code graph representation
+- Click for CLI entry point and subcommands
 
 ### Optional
 - ruff/pylint for additional static analysis

@@ -200,14 +200,25 @@
 
 ## 10. CLI Interface
 
-- [ ] 10.1 Create `bichos/cli/main.py` with Click framework
-  - [ ] `bichos analyze <path>` command
-  - [ ] `bichos config` command to show/edit config
-  - [ ] `bichos stats` command for pheromone statistics
-  - [ ] `bichos clear-cache` command
-- [ ] 10.2 Add progress bars and status updates
-- [ ] 10.3 Create rich formatting for analysis reports
-- [ ] 10.4 Write tests for CLI commands
+- [ ] 10.1 Create `src/bichos/cli.py` (or `src/bichos/cli/main.py`) with Click
+  - [ ] Top-level `@click.group()` named `main` — this is the entry point
+  - [ ] `bichos analyze <path> [--config FILE] [--agents N] [--output FILE]`
+  - [ ] `bichos stats [--path DIR]` — pheromone heatmap
+  - [ ] `bichos config show` — print resolved config
+  - [ ] `bichos clear-cache` — wipe pheromone store
+  - [ ] `bichos --version` via `@click.version_option`
+  - [ ] All subcommands expose `--help` with example invocations
+- [ ] 10.2 Wire entry point in `pyproject.toml`
+  - [ ] `[project.scripts] bichos = "bichos.cli:main"` (adjust module path if needed)
+  - [ ] Verify `pip install -e .` makes `bichos` available on `PATH`
+- [ ] 10.3 Exit code discipline
+  - [ ] Exit 0 on clean run, exit 1 when issues are found, exit 2 on error
+  - [ ] Errors go to stderr; structured output goes to stdout
+- [ ] 10.4 Add progress bars and status updates during analysis
+- [ ] 10.5 Create rich formatting for analysis reports (markdown + terminal colour)
+- [ ] 10.6 Write tests for CLI commands using `click.testing.CliRunner`
+  - [ ] Test `--version`, `--help`, `analyze`, `stats`, `clear-cache`
+  - [ ] Test exit codes for success, found-issues, and error paths
 
 ## 11. Testing and Quality
 
@@ -268,19 +279,27 @@
 
 ## 13. Packaging and Distribution
 
-- [ ] 13.1 Configure pyproject.toml for PyPI
-  - [ ] Set package metadata (name, version, description)
-  - [ ] Define entry points for CLI
-  - [ ] Specify dependencies with version constraints
-  - [ ] Add development dependencies
-- [ ] 13.2 Create `LICENSE` file (choose appropriate license)
-- [ ] 13.3 Create `CHANGELOG.md` for version history
-- [ ] 13.4 Set up GitHub Actions for CI/CD
+- [ ] 13.1 Complete `pyproject.toml` for PyPI publication
+  - [ ] Package metadata: `name = "bichos"`, version, description, license, classifiers
+  - [ ] `[project.scripts] bichos = "bichos.cli:main"` entry point
+  - [ ] Runtime dependencies with version constraints (pydantic-ai, diskcache, loguru, networkx, radon, click)
+  - [ ] Optional dependency groups: `[project.optional-dependencies] llm = [openai, anthropic]`
+  - [ ] Dev dependencies under `[dependency-groups] dev = [pytest, ruff, mypy, ...]`
+  - [ ] `[build-system]` using hatchling or flit (compatible with uv)
+- [ ] 13.2 Verify installability across package managers
+  - [ ] `pip install -e .` → `bichos --help` works
+  - [ ] `uv tool install .` → `bichos --version` works in a fresh shell
+  - [ ] `uvx --from . bichos --help` (ephemeral execution from local build)
+  - [ ] `pipx install .` in a clean virtualenv
+- [ ] 13.3 Create `LICENSE` file (MIT recommended for developer tooling)
+- [ ] 13.4 Create `CHANGELOG.md` for version history
+- [ ] 13.5 Set up GitHub Actions for CI/CD
   - [ ] Run tests on PRs
   - [ ] Check code formatting
-  - [ ] Publish to PyPI on releases
-- [ ] 13.5 Test installation in clean environment
-- [ ] 13.6 Publish v0.1.0 to PyPI
+  - [ ] Publish to PyPI on releases (using Trusted Publisher / OIDC)
+- [ ] 13.6 Smoke-test in a clean environment (no source checkout)
+  - [ ] `pip install bichos && bichos --version && bichos --help`
+- [ ] 13.7 Publish v0.1.0 to PyPI
 
 ## Validation Checklist
 

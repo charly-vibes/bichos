@@ -223,21 +223,21 @@ The system SHALL meet defined performance benchmarks for analysis speed.
 - **THEN** operation completes in < 50 milliseconds
 - **AND** doesn't block agent iteration
 
-### Requirement: CLI Integration
-The system SHALL provide command-line interface for initiating hive analysis.
+### Requirement: CLI Invocation
+The Hive Orchestrator SHALL be invocable from the CLI layer via a programmatic API so the CLI can delegate analysis without tight coupling.
 
-#### Scenario: Run analysis via CLI
-- **WHEN** user runs `bichos analyze /path/to/repo`
-- **THEN** hive orchestrator is initialized
-- **AND** analysis begins with progress bar
-- **AND** report is saved to `bichos-report.md`
+#### Scenario: Orchestrator accepts path and config
+- **WHEN** the CLI layer calls the orchestrator with a codebase path and optional HiveConfig
+- **THEN** the orchestrator initializes and begins the analysis workflow
+- **AND** returns a structured AnalysisReport on completion
 
-#### Scenario: Custom config via CLI
-- **WHEN** user runs `bichos analyze /repo --config custom.yaml`
-- **THEN** custom config overrides defaults
-- **AND** analysis runs with specified parameters
+#### Scenario: Orchestrator reports progress
+- **WHEN** analysis is running
+- **THEN** the orchestrator emits progress events the CLI can render as a progress indicator
 
-#### Scenario: View pheromone heatmap
-- **WHEN** user runs `bichos stats`
-- **THEN** pheromone statistics are displayed
-- **AND** top 10 high-pheromone locations are shown
+<!--
+The installable command surface (`bichos analyze`, `bichos stats`, etc.) and
+its UX contracts (flags, exit codes, output formats) are specified in the
+`cli` capability. This requirement covers only how the orchestrator exposes
+itself for programmatic invocation by that layer.
+-->

@@ -1,4 +1,4 @@
-"""Tests for hive orchestrator data models (bichos-46o).
+"""Tests for hive orchestrator data models (bichos-46o) and workflow (bichos-bgc).
 
 Tests cover:
 - SwarmState dataclass fields and defaults
@@ -8,19 +8,27 @@ Tests cover:
 - pheromone_heatmap intensity values in [0.0, 100.0]
 - confidence values in [0.0, 1.0]
 - Round-trip serialization of AnalysisReport
+- InitNode builds CodeGraph + PheromoneCache and stores them on state
+- SplitNode spawns correct number of agents (mocked)
+- JoinNode deduplicates bugs by (file_path, line_number)
+- Full pipeline with mocked LLM via run_hive
+- Agent failure and timeout resilience
 """
 
 from dataclasses import fields
 from pathlib import Path
+from unittest.mock import AsyncMock, patch
 
 import networkx as nx
 import pytest
 from pydantic import ValidationError
+from pydantic_graph import End, GraphRunContext
 
 from bichos.agents.ant.models import BugReport, ExplorationResult
 from bichos.config import HiveConfig
-from bichos.graph.models import CodeGraph
+from bichos.graph.models import CodeGraph, NodeMeta
 from bichos.hive.models import AnalysisReport, ReportMetadata, SummaryStats, SwarmState
+from bichos.hive.orchestrator import InitNode, JoinNode, ReportNode, SplitNode, run_hive
 from bichos.stigmergy.cache import PheromoneCache
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -402,3 +410,336 @@ class TestAnalysisReport:
         """metadata is a ReportMetadata instance."""
         report = self._make_valid_report()
         assert isinstance(report.metadata, ReportMetadata)
+
+
+# ── Orchestrator workflow tests (bichos-bgc) ──────────────────────────────────
+
+
+def _make_swarm_state(tmp_path: Path) -> SwarmState:
+    """Return a minimal SwarmState with an empty graph and fresh cache."""
+    return SwarmState(
+        code_graph=_make_code_graph(),
+        pheromone_cache=_make_pheromone_cache(tmp_path),
+        config=_make_config(),
+    )
+
+
+class TestInitNode:
+    """InitNode must build CodeGraph + PheromoneCache and store them on state."""
+
+    @pytest.mark.asyncio
+    async def test_init_node_populates_state(self, tmp_path: Path) -> None:
+        """After InitNode.run, state.code_graph has a node count >= 0."""
+        state = _make_swarm_state(tmp_path)
+        node = InitNode(repo_path=tmp_path, cache_dir=tmp_path / "cache")
+
+        ctx = GraphRunContext(state=state, deps=None)
+
+        next_node = await node.run(ctx)
+
+        # state must now contain real CodeGraph and PheromoneCache instances
+        assert isinstance(state.code_graph, CodeGraph)
+        assert isinstance(state.pheromone_cache, PheromoneCache)
+        # should transition to SplitNode
+        assert isinstance(next_node, SplitNode)
+
+    @pytest.mark.asyncio
+    async def test_init_node_accepts_real_python_dir(self, tmp_path: Path) -> None:
+        """InitNode builds a graph from a directory containing .py files."""
+        # Write a small Python file
+        (tmp_path / "sample.py").write_text("def hello():\n    pass\n")
+        state = _make_swarm_state(tmp_path)
+        node = InitNode(repo_path=tmp_path, cache_dir=tmp_path / "cache")
+
+        ctx = GraphRunContext(state=state, deps=None)
+        await node.run(ctx)
+
+        assert state.code_graph.node_count() >= 1
+
+
+class TestSplitNode:
+    """SplitNode must spawn one agent per function node and handle failures."""
+
+    @pytest.mark.asyncio
+    async def test_split_node_spawns_correct_count(self, tmp_path: Path) -> None:
+        """SplitNode calls run_ant once per function node in the graph."""
+        g: nx.DiGraph[str] = nx.DiGraph()
+        for i in range(3):
+            qname = f"mod.fn{i}"
+            meta = NodeMeta(
+                name=f"fn{i}",
+                qualified_name=qname,
+                file_path="mod.py",
+                lineno=i + 1,
+                loc=5,
+                complexity=1,
+                is_class=False,
+            )
+            g.add_node(qname, meta=meta)
+
+        state = SwarmState(
+            code_graph=CodeGraph(graph=g, root=tmp_path),
+            pheromone_cache=_make_pheromone_cache(tmp_path),
+            config=_make_config(),
+        )
+
+        fake_result = ExplorationResult(
+            path_visited=["mod.fn0"],
+            bugs_found=[],
+            tokens_used=10,
+        )
+
+        with patch(
+            "bichos.hive.orchestrator.run_ant",
+            new_callable=AsyncMock,
+            return_value=fake_result,
+        ) as mock_run_ant:
+            node = SplitNode()
+            ctx = GraphRunContext(state=state, deps=None)
+            next_node = await node.run(ctx)
+
+        assert mock_run_ant.call_count == 3
+        assert isinstance(next_node, JoinNode)
+        assert len(state.results) == 3
+
+    @pytest.mark.asyncio
+    async def test_split_node_handles_exception(self, tmp_path: Path) -> None:
+        """A failing agent adds its ID to degraded_agents; swarm continues."""
+        g: nx.DiGraph[str] = nx.DiGraph()
+        for i in range(2):
+            qname = f"mod.fn{i}"
+            meta = NodeMeta(
+                name=f"fn{i}",
+                qualified_name=qname,
+                file_path="mod.py",
+                lineno=i + 1,
+                loc=5,
+                complexity=1,
+                is_class=False,
+            )
+            g.add_node(qname, meta=meta)
+
+        state = SwarmState(
+            code_graph=CodeGraph(graph=g, root=tmp_path),
+            pheromone_cache=_make_pheromone_cache(tmp_path),
+            config=_make_config(),
+        )
+
+        fake_result = ExplorationResult(
+            path_visited=["mod.fn0"],
+            bugs_found=[],
+            tokens_used=10,
+        )
+
+        call_count = 0
+
+        async def side_effect(*args: object, **kwargs: object) -> ExplorationResult:
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                raise RuntimeError("agent failure")
+            return fake_result
+
+        with patch("bichos.hive.orchestrator.run_ant", side_effect=side_effect):
+            node = SplitNode()
+            ctx = GraphRunContext(state=state, deps=None)
+            await node.run(ctx)
+
+        # One result succeeded, one degraded
+        assert len(state.results) == 1
+        assert len(state.degraded_agents) == 1
+
+    @pytest.mark.asyncio
+    async def test_agent_timeout_enforced(self, tmp_path: Path) -> None:
+        """An agent that times out is treated as degraded, not a crash."""
+        g: nx.DiGraph[str] = nx.DiGraph()
+        qname = "mod.slow_fn"
+        meta = NodeMeta(
+            name="slow_fn",
+            qualified_name=qname,
+            file_path="mod.py",
+            lineno=1,
+            loc=5,
+            complexity=1,
+            is_class=False,
+        )
+        g.add_node(qname, meta=meta)
+
+        state = SwarmState(
+            code_graph=CodeGraph(graph=g, root=tmp_path),
+            pheromone_cache=_make_pheromone_cache(tmp_path),
+            config=_make_config(),
+        )
+
+        async def slow_agent(*args: object, **kwargs: object) -> ExplorationResult:
+            raise TimeoutError()
+
+        with patch("bichos.hive.orchestrator.run_ant", side_effect=slow_agent):
+            node = SplitNode()
+            ctx = GraphRunContext(state=state, deps=None)
+            await node.run(ctx)
+
+        assert len(state.results) == 0
+        assert len(state.degraded_agents) == 1
+
+
+class TestJoinNode:
+    """JoinNode must deduplicate bugs by (file_path, line_number)."""
+
+    @pytest.mark.asyncio
+    async def test_join_node_deduplicates_by_location(self, tmp_path: Path) -> None:
+        """Two bugs at the same (file_path, line_number) → one in state."""
+        dup_bug = BugReport(
+            function_name="foo",
+            file_path="src/foo.py",
+            line_number=10,
+            description="duplicate",
+            severity=5,
+            confidence=0.8,
+        )
+        dup_bug2 = BugReport(
+            function_name="foo",
+            file_path="src/foo.py",
+            line_number=10,
+            description="duplicate again",
+            severity=4,
+            confidence=0.6,
+        )
+        r1 = ExplorationResult(path_visited=["foo"], bugs_found=[dup_bug])
+        r2 = ExplorationResult(path_visited=["bar"], bugs_found=[dup_bug2])
+
+        state = _make_swarm_state(tmp_path)
+        state.results = [r1, r2]
+
+        node = JoinNode()
+        ctx = GraphRunContext(state=state, deps=None)
+        next_node = await node.run(ctx)
+
+        assert isinstance(next_node, ReportNode)
+        # deduplicated list stored on state — access via attribute
+        assert len(next_node.deduplicated_bugs) == 1
+
+    @pytest.mark.asyncio
+    async def test_join_node_keeps_highest_confidence(self, tmp_path: Path) -> None:
+        """When deduplicating, the bug with the highest confidence wins."""
+        low_conf = BugReport(
+            function_name="foo",
+            file_path="src/foo.py",
+            line_number=10,
+            description="low confidence",
+            severity=3,
+            confidence=0.5,
+        )
+        high_conf = BugReport(
+            function_name="foo",
+            file_path="src/foo.py",
+            line_number=10,
+            description="high confidence",
+            severity=7,
+            confidence=0.95,
+        )
+        r1 = ExplorationResult(path_visited=["foo"], bugs_found=[low_conf])
+        r2 = ExplorationResult(path_visited=["bar"], bugs_found=[high_conf])
+
+        state = _make_swarm_state(tmp_path)
+        state.results = [r1, r2]
+
+        node = JoinNode()
+        ctx = GraphRunContext(state=state, deps=None)
+        next_node = await node.run(ctx)
+
+        assert next_node.deduplicated_bugs[0].confidence == pytest.approx(0.95)
+
+
+class TestReportNode:
+    """ReportNode must return End(AnalysisReport) with correct stats."""
+
+    @pytest.mark.asyncio
+    async def test_report_node_builds_analysis_report(self, tmp_path: Path) -> None:
+        """ReportNode returns End(AnalysisReport) with correct stats."""
+        bug = BugReport(
+            function_name="foo",
+            file_path="src/foo.py",
+            line_number=10,
+            description="A bug",
+            severity=5,
+            confidence=0.9,
+        )
+        result = ExplorationResult(
+            path_visited=["foo", "bar"],
+            bugs_found=[bug],
+            tokens_used=50,
+        )
+
+        state = _make_swarm_state(tmp_path)
+        state.results = [result]
+
+        deduped = [bug]
+        node = ReportNode(
+            deduplicated_bugs=deduped,
+            repo_path=tmp_path,
+        )
+        ctx = GraphRunContext(state=state, deps=None)
+        end = await node.run(ctx)
+
+        assert isinstance(end, End)
+        report = end.data
+        assert isinstance(report, AnalysisReport)
+        assert len(report.bugs) == 1
+        assert report.summary_stats.unique_bugs == 1
+        assert report.metadata.total_tokens >= 0
+        assert report.metadata.agent_count >= 1
+        all(0.0 <= v <= 100.0 for v in report.pheromone_heatmap.values())
+
+
+class TestRunHive:
+    """Full pipeline integration tests using mocked LLM."""
+
+    @pytest.mark.asyncio
+    async def test_full_pipeline_mocked_llm(self, tmp_path: Path) -> None:
+        """run_hive returns AnalysisReport without calling real LLM."""
+        (tmp_path / "sample.py").write_text("def hello():\n    pass\n")
+
+        fake_result = ExplorationResult(
+            path_visited=["sample.hello"],
+            bugs_found=[
+                BugReport(
+                    function_name="hello",
+                    file_path="sample.py",
+                    line_number=1,
+                    description="Fake bug",
+                    severity=3,
+                    confidence=0.8,
+                )
+            ],
+            tokens_used=100,
+        )
+
+        config = HiveConfig.default()
+        with patch(
+            "bichos.hive.orchestrator.run_ant",
+            new_callable=AsyncMock,
+            return_value=fake_result,
+        ):
+            report = await run_hive(tmp_path, config)
+
+        assert isinstance(report, AnalysisReport)
+        assert report.metadata.repo_path == str(tmp_path)
+
+    @pytest.mark.asyncio
+    async def test_full_pipeline_agent_failure_does_not_crash(
+        self, tmp_path: Path
+    ) -> None:
+        """run_hive returns AnalysisReport even if all agents fail."""
+        (tmp_path / "sample.py").write_text("def hello():\n    pass\n")
+
+        config = HiveConfig.default()
+        with patch(
+            "bichos.hive.orchestrator.run_ant",
+            new_callable=AsyncMock,
+            side_effect=RuntimeError("all agents dead"),
+        ):
+            report = await run_hive(tmp_path, config)
+
+        assert isinstance(report, AnalysisReport)
+        assert report.bugs == []

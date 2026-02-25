@@ -183,3 +183,109 @@ def test_each_bug_file_has_exactly_one_bug_marker() -> None:
         if len(bugs) > 1:
             multi.append(f"{path.name}: {bugs}")
     assert not multi, "Files with more than one BUG: marker:\n" + "\n".join(multi)
+
+
+# ---------------------------------------------------------------------------
+# MANIFEST.md tests
+# ---------------------------------------------------------------------------
+
+MANIFEST_PATH = Path(__file__).parent / "fixtures" / "MANIFEST.md"
+FIXTURES_ROOT = Path(__file__).parent / "fixtures"
+
+# Pattern matching a markdown table row with a pipe-separated file path
+MANIFEST_ROW_RE = re.compile(r"^\|\s*([\w_/]+\.py)\s*\|", re.MULTILINE)
+
+
+def _parse_manifest_rows(content: str) -> list[str]:
+    """Return list of file paths from all table rows in MANIFEST.md."""
+    return MANIFEST_ROW_RE.findall(content)
+
+
+def test_manifest_exists() -> None:
+    assert MANIFEST_PATH.exists(), f"MANIFEST.md not found at {MANIFEST_PATH}"
+
+
+def test_manifest_has_required_columns() -> None:
+    content = MANIFEST_PATH.read_text()
+    # Check that a header row with all required columns is present
+    assert "| File" in content or "| file" in content.lower(), (
+        "MANIFEST.md missing 'File' column header"
+    )
+    assert "Line" in content, "MANIFEST.md missing 'Line' column header"
+    assert "Function" in content, "MANIFEST.md missing 'Function' column header"
+    assert "Bug Type" in content, "MANIFEST.md missing 'Bug Type' column header"
+    assert "Severity" in content, "MANIFEST.md missing 'Severity' column header"
+    assert "Description" in content, "MANIFEST.md missing 'Description' column header"
+
+
+def test_manifest_has_exactly_4_simple_bugs_rows() -> None:
+    content = MANIFEST_PATH.read_text()
+    simple_rows = re.findall(r"^\|\s*simple_bugs/\S+\.py", content, re.MULTILINE)
+    assert len(simple_rows) == 4, (
+        f"Expected 4 rows for simple_bugs/, got {len(simple_rows)}: {simple_rows}"
+    )
+
+
+def test_manifest_has_exactly_10_medium_bugs_rows() -> None:
+    content = MANIFEST_PATH.read_text()
+    medium_rows = re.findall(r"^\|\s*medium_bugs/\S+\.py", content, re.MULTILINE)
+    assert len(medium_rows) == 10, (
+        f"Expected 10 rows for medium_bugs/, got {len(medium_rows)}: {medium_rows}"
+    )
+
+
+def test_manifest_contains_calculator_division_by_zero() -> None:
+    """Spot-check: calculator.py division-by-zero entry is present with sev=8."""
+    content = MANIFEST_PATH.read_text()
+    assert "simple_bugs/calculator.py" in content, (
+        "MANIFEST.md missing simple_bugs/calculator.py entry"
+    )
+    assert "division-by-zero" in content, (
+        "MANIFEST.md missing division-by-zero bug type"
+    )
+    # The row for calculator.py must contain sev 8
+    for line in content.splitlines():
+        if "simple_bugs/calculator.py" in line:
+            assert "8" in line, f"calculator.py row missing severity 8: {line!r}"
+            break
+
+
+def test_manifest_contains_config_loader_hardcoded_creds() -> None:
+    """Spot-check: config_loader.py hardcoded-creds sev=9."""
+    content = MANIFEST_PATH.read_text()
+    assert "simple_bugs/config_loader.py" in content
+    assert "hardcoded-creds" in content
+
+
+def test_manifest_contains_db_users_sql_injection() -> None:
+    """Spot-check: db_users.py sql-injection sev=9."""
+    content = MANIFEST_PATH.read_text()
+    assert "medium_bugs/db_users.py" in content
+    assert "sql-injection" in content
+
+
+def test_manifest_contains_metrics_collector_unused_import() -> None:
+    """Spot-check: metrics_collector.py unused-import sev=2."""
+    content = MANIFEST_PATH.read_text()
+    assert "medium_bugs/metrics_collector.py" in content
+    assert "unused-import" in content
+
+
+def test_manifest_entries_match_actual_bug_markers() -> None:
+    """Verify each file listed in MANIFEST.md actually has a BUG marker."""
+    content = MANIFEST_PATH.read_text()
+    file_paths = re.findall(
+        r"^\|\s*((?:simple_bugs|medium_bugs)/\S+\.py)", content, re.MULTILINE
+    )
+    missing: list[str] = []
+    for rel_path in file_paths:
+        abs_path = FIXTURES_ROOT / rel_path
+        if not abs_path.exists():
+            missing.append(f"{rel_path}: file not found")
+            continue
+        file_content = abs_path.read_text()
+        if "# BUG" not in file_content and "#BUG" not in file_content:
+            missing.append(f"{rel_path}: no BUG marker found in source")
+    assert not missing, (
+        "MANIFEST.md entries without matching BUG markers:\n" + "\n".join(missing)
+    )

@@ -3,8 +3,18 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 from pydantic import BaseModel, Field, model_validator
+
+
+class ModelConfig(BaseModel):
+    """Structured model selection: provider, name, and optional connection overrides."""
+
+    provider: str
+    name: str
+    base_url: str | None = None
+    api_key_env: str | None = None
 
 
 class ACOConfig(BaseModel):
@@ -39,8 +49,9 @@ class HiveConfig(BaseModel):
     ant_count: int = Field(5, ge=1, le=50, description="Number of Ant Forager agents")
 
     # Model selection
-    ant_model: str = Field(
-        "openai:gpt-4o", description="PydanticAI model string for Ant agents"
+    model: ModelConfig = Field(
+        default_factory=lambda: ModelConfig(provider="openai", name="gpt-4o"),
+        description="Model provider and name for Ant agents",
     )
 
     # ACO parameters
@@ -63,6 +74,33 @@ class HiveConfig(BaseModel):
     min_confidence: float = Field(
         0.7, ge=0.0, le=1.0, description="Minimum bug confidence to include in report"
     )
+
+    @property
+    def ant_model(self) -> str:
+        """Legacy read-only accessor returning the model in 'provider:name' form.
+
+        Preserved so that existing callers of ``deps.config.ant_model`` continue
+        to work until Task C (bichos-7j5) wires ``build_model()`` into agent.py.
+        """
+        return f"{self.model.provider}:{self.model.name}"
+
+    @model_validator(mode="before")
+    @classmethod
+    def _promote_ant_model(cls, data: Any) -> Any:
+        """Promote legacy ant_model string key to ModelConfig dict.
+
+        Only runs when 'ant_model' is present and 'model' is absent, so that
+        an explicit 'model' key always wins. Splits on the first ':' to extract
+        provider and name; defaults provider to 'openai' when ':' is absent.
+        """
+        if isinstance(data, dict) and "ant_model" in data and "model" not in data:
+            value = str(data.pop("ant_model"))
+            if ":" in value:
+                provider, name = value.split(":", 1)
+            else:
+                provider, name = "openai", value
+            data["model"] = {"provider": provider, "name": name}
+        return data
 
     @model_validator(mode="after")
     def _validate_intensity_range(self) -> HiveConfig:

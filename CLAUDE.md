@@ -72,26 +72,44 @@ Before saying "done", run this checklist:
 ### Autonomous Orchestration Pattern
 
 **The main agent is an orchestrator only — it never holds implementation context.**
-If you are writing source files directly in the main agent, you are doing it wrong.
-Delegate all implementation to subagents; keep the main context for orientation and commit.
+Every stage is an independent subagent. **wai artifacts are the shared memory between stages.**
+Never implement files yourself in the main agent; only close tickets and commit.
 
-The loop (one task per iteration):
+---
+
+#### Pipeline 1 — Issue Pipeline (creating new work items)
 
 ```
-1. wai prime + bd ready          → orient, pick ONE task
-2. bd show <id>                  → verify ticket is self-contained
-   └─ if not: /bd:review <id>    → enrich description first
-3. Task(general-purpose, "...")  → spawn subagent with the full ticket description
-4. Review result                 → confirm tests pass + lint clean
-5. bd close <id>                 → mark complete
-6. git add <files> && git commit → MANDATORY after every task
-7. Check context usage           → if >30%, run wai close then /clear
+Stage 1 (Gather):   /issue:gather <topic>   → research codebase, save to wai
+Stage 2 (Create):   /issue:create           → read wai, generate bd tickets
+Stage 3 (Review):   /issue:review           → Rule of 5 audit, update tickets
 ```
+
+Each stage = one independent subagent. Output lives in wai, not in the main agent context.
+
+---
+
+#### Pipeline 2 — Implementation Pipeline (one ticket per iteration)
+
+```
+Stage 1 (Gather):   /impl:gather            → pick ONE issue, verify, save plan to wai
+Stage 2 (Implement):/impl:run <id>          → TDD: red→green→refactor, just check
+Stage 3 (Review):   /impl:review            → Rule of 5 code review, APPROVED or NEEDS_CHANGES
+```
+
+Then in the main agent (after APPROVED):
+```bash
+bd close <id>
+git add <files> && git commit -m "feat(...): ..."
+```
+
+---
 
 **Key rules:**
-- ONE ticket = ONE subagent invocation. Never chain two tickets in the same subagent.
-- The subagent prompt = the beads ticket description verbatim (that's why they must be self-contained).
-- Never implement files yourself in the main agent; review and commit only.
+- Each stage = ONE independent subagent. Never chain two stages in one subagent.
+- Stages communicate via wai artifacts — not by passing raw text between them.
+- `/impl:review` returns APPROVED / NEEDS_CHANGES / NEEDS_HUMAN. Act on it.
+- Never implement files yourself in the main agent; review verdict and commit only.
 - Context warning thresholds: >30% → plan to clear after this task. >40% → clear now.
 
 → Next session: `wai prime` shows ⚡ RESUMING with exact next steps.
@@ -124,9 +142,29 @@ bd close <id>                # Complete work
 ```
 
 ### skills (slash commands)
+
+Issue Pipeline (gather → create → review):
 ```
-/bd:review <id>              # Audit + enrich ticket for subagent handoff (Rule of 5)
+/issue:gather <topic>        # Stage 1: research topic, save wai artifact
+/issue:create                # Stage 2: read wai, generate bd tickets with TDD mandate
+/issue:review [id(s)]        # Stage 3: Rule of 5 audit, update tickets
+```
+
+Implementation Pipeline (gather → run → review):
+```
+/impl:gather                 # Stage 1: pick ONE issue, verify, save plan to wai
+/impl:run <id>               # Stage 2: TDD red→green→refactor, just check
+/impl:review                 # Stage 3: Rule of 5 code review → APPROVED / NEEDS_CHANGES
+```
+
+Ticket enrichment:
+```
+/bd:review <id>              # Audit + enrich one ticket (Rule of 5)
 /bd:review all open          # Audit all open tickets at once
+```
+
+OpenSpec:
+```
 /openspec:proposal           # Scaffold a new OpenSpec change
 /openspec:apply              # Implement an approved OpenSpec change
 ```

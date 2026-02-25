@@ -303,43 +303,60 @@ def test_benchmark_skip_slow_uses_mock() -> None:
 
 
 def test_benchmark_dataset_simple() -> None:
-    """--dataset simple passes only simple_bugs paths to run_hive."""
+    """--dataset simple routes only simple_bugs paths through _compute_metrics.
+
+    Patches _compute_metrics (always called even in --skip-slow mode) so routing
+    is verified without needing a real API key or live run_hive call.
+    """
+    import bichos.cli as cli_module
+
     captured_paths: list[Path] = []
-    mock_report = _make_empty_report()
+    original_compute = cli_module._compute_metrics
 
-    async def _capture_run_hive(repo_path: Path, config: object) -> AnalysisReport:
-        captured_paths.append(repo_path)
-        return mock_report
+    def _capturing_compute(
+        report: AnalysisReport, fixture_path: Path, ground_truth_count: int
+    ) -> dict[str, float]:
+        captured_paths.append(fixture_path)
+        return original_compute(report, fixture_path, ground_truth_count)
 
-    with patch("bichos.cli.run_hive", new=_capture_run_hive):
+    with patch("bichos.cli._compute_metrics", side_effect=_capturing_compute):
         result = runner.invoke(
             app,
-            ["benchmark", "--dataset", "simple", "--seeds", "1"],
+            ["benchmark", "--skip-slow", "--dataset", "simple", "--seeds", "1"],
         )
 
     assert result.exit_code == 0, result.output
-    # All captured paths should be within the simple_bugs fixture dir
+    assert len(captured_paths) > 0, "No paths captured — routing not exercised"
     for p in captured_paths:
         assert "simple_bugs" in str(p), f"Expected simple_bugs path, got {p}"
     assert "medium_bugs" not in " ".join(str(p) for p in captured_paths)
 
 
 def test_benchmark_dataset_medium() -> None:
-    """--dataset medium passes only medium_bugs paths to run_hive."""
+    """--dataset medium routes only medium_bugs paths through _compute_metrics.
+
+    Patches _compute_metrics (always called even in --skip-slow mode) so routing
+    is verified without needing a real API key or live run_hive call.
+    """
+    import bichos.cli as cli_module
+
     captured_paths: list[Path] = []
-    mock_report = _make_empty_report()
+    original_compute = cli_module._compute_metrics
 
-    async def _capture_run_hive(repo_path: Path, config: object) -> AnalysisReport:
-        captured_paths.append(repo_path)
-        return mock_report
+    def _capturing_compute(
+        report: AnalysisReport, fixture_path: Path, ground_truth_count: int
+    ) -> dict[str, float]:
+        captured_paths.append(fixture_path)
+        return original_compute(report, fixture_path, ground_truth_count)
 
-    with patch("bichos.cli.run_hive", new=_capture_run_hive):
+    with patch("bichos.cli._compute_metrics", side_effect=_capturing_compute):
         result = runner.invoke(
             app,
-            ["benchmark", "--dataset", "medium", "--seeds", "1"],
+            ["benchmark", "--skip-slow", "--dataset", "medium", "--seeds", "1"],
         )
 
     assert result.exit_code == 0, result.output
+    assert len(captured_paths) > 0, "No paths captured — routing not exercised"
     for p in captured_paths:
         assert "medium_bugs" in str(p), f"Expected medium_bugs path, got {p}"
     assert "simple_bugs" not in " ".join(str(p) for p in captured_paths)

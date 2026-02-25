@@ -198,7 +198,7 @@ def stats(
 def _parse_manifest_bug_counts() -> dict[str, int]:
     """Parse tests/fixtures/MANIFEST.md and return bug counts per dataset.
 
-    Returns a dict like {"simple": 4, "medium": 10}.
+    Returns a dict like {"simple_bugs": 4, "medium_bugs": 10}.
     """
     manifest_path = _FIXTURES_ROOT / "MANIFEST.md"
     if not manifest_path.exists():

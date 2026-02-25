@@ -689,7 +689,7 @@ class TestReportNode:
         assert report.summary_stats.unique_bugs == 1
         assert report.metadata.total_tokens >= 0
         assert report.metadata.agent_count >= 1
-        all(0.0 <= v <= 100.0 for v in report.pheromone_heatmap.values())
+        assert all(0.0 <= v <= 100.0 for v in report.pheromone_heatmap.values())
 
 
 class TestRunHive:

@@ -81,21 +81,24 @@ Every finding: `file:line` reference + description + severity (CRITICAL/HIGH/MED
 
 ## CONVERGENCE CHECK (after each pass from Pass 2)
 
-- New CRITICAL issues: N
+- New issues (any severity): N
 - Total issues: N (vs previous pass: N)
 - Status: **CONVERGED** / **CONTINUE** / **NEEDS_HUMAN**
 
-Stop when: no new CRITICAL issues and <10% new findings vs previous pass.
+Stop when: zero new issues at any severity and <10% new findings vs previous pass.
 
 ---
 
 ## VERDICT
 
-**APPROVED** — zero CRITICAL issues, safe to commit
-**NEEDS_CHANGES** — list CRITICAL/HIGH items with exact fix instructions; re-run `/impl:run <id>`
+**APPROVED** — zero issues at any severity (CRITICAL/HIGH/MEDIUM/LOW), safe to commit
+**NEEDS_CHANGES** — list ALL issues with exact fix instructions; re-run `/impl:run <id>`
 **NEEDS_HUMAN** — architectural concern or spec conflict; escalate to user
+
+> **Important:** LOW severity issues are low-cost to fix and must be fixed before APPROVED.
+> There is no "noted but not fixed" category — every finding requires a code change.
 
 The main orchestrator acts on the verdict:
 - APPROVED → `bd close <id>` + `git add <files> && git commit`
-- NEEDS_CHANGES → re-run `/impl:run <id>` with the fix list
+- NEEDS_CHANGES → re-run `/impl:run <id>` with the full fix list (all severities)
 - NEEDS_HUMAN → pause and ask the user

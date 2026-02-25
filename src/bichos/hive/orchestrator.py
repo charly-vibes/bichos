@@ -15,6 +15,7 @@ import hashlib
 import random
 from dataclasses import dataclass
 from pathlib import Path
+from typing import cast
 
 import networkx as nx
 from pydantic_graph import BaseNode, End, Graph, GraphRunContext
@@ -240,8 +241,6 @@ async def run_hive(repo_path: Path, config: HiveConfig) -> AnalysisReport:
     )
 
     # Nodes have heterogeneous RunEndT; cast to satisfy Graph's homogeneous type param.
-    from typing import cast
-
     _nodes = cast(
         "list[type[BaseNode[SwarmState, None, AnalysisReport]]]",
         [InitNode, SplitNode, JoinNode, ReportNode],

@@ -82,11 +82,15 @@ Apply fixes: `bd update <id> --description "..."`
 
 ## CONVERGENCE CHECK (after each pass from Pass 2)
 
-- New CRITICAL gaps found: N
+- New gaps found (any severity): N
 - New findings vs previous pass: N%
 - Status: **CONVERGED** / **CONTINUE** / **NEEDS_HUMAN**
 
-Stop when: no new CRITICAL gaps and <10% new findings vs previous pass.
+Stop when: zero new gaps at any severity and <10% new findings vs previous pass.
+
+> **Important:** LOW-severity gaps (vague phrasing, missing scope guard, minor missing context)
+> are low-cost to fix and must be addressed. There is no "noted but not fixed" category —
+> every finding requires a ticket update before the issue is considered ready.
 
 ---
 

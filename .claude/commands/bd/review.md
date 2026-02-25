@@ -126,12 +126,16 @@ Output: Confirmation that each ticket was updated, or SKIP if it already passed
 ## CONVERGENCE CHECK
 
 After each stage (starting with Stage 2), report:
-1. Number of new CRITICAL gaps found (missing file paths, no verification command, no spec reference)
+1. Number of new gaps found at any severity (CRITICAL / HIGH / MEDIUM / LOW)
 2. New issues vs previous stage count
 3. Convergence status:
-   - **CONVERGED**: No new CRITICAL gaps, <10% new issues vs previous stage
+   - **CONVERGED**: Zero new gaps at any severity, <10% new issues vs previous stage
    - **CONTINUE**: Proceed to next stage
    - **NEEDS_HUMAN**: Conflicting spec requirements, ambiguous scope, or missing spec section
+
+> **Important:** LOW-severity gaps (e.g. vague phrasing, missing "do NOT" guard) are low-cost
+> to fix and must be addressed before a ticket is considered self-contained. There is no
+> "noted but not fixed" category.
 
 ---
 

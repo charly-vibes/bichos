@@ -45,6 +45,7 @@ dev = [
     "pytest-asyncio>=0.23",
     "ruff>=0.5",
     "mypy>=1.10",
+    "types-networkx>=3.0",
 ]
 
 [tool.ruff]
@@ -57,6 +58,18 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 [tool.mypy]
 python_version = "3.11"
 strict = true
+
+[[tool.mypy.overrides]]
+module = "radon.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "diskcache"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "diskcache.*"
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

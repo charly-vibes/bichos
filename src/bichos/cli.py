@@ -65,6 +65,8 @@ def analyze(
         ant_count=ants,
         ant_model=model,
         min_confidence=min_confidence,
+        max_files=500,
+        max_tokens_per_ant=4096,
     )
 
     logger.info(f"Starting bichos analysis of {path} with {config.ant_count} ants")

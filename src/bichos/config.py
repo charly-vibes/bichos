@@ -44,10 +44,12 @@ class HiveConfig(BaseModel):
     )
 
     # ACO parameters
-    aco: ACOConfig = Field(default_factory=ACOConfig)
+    aco: ACOConfig = Field(default_factory=lambda: ACOConfig.model_validate({}))
 
     # Stigmergy / cache
-    stigmergy: StigmergyConfig = Field(default_factory=StigmergyConfig)
+    stigmergy: StigmergyConfig = Field(
+        default_factory=lambda: StigmergyConfig.model_validate({})
+    )
 
     # Analysis limits
     max_files: int = Field(
@@ -73,4 +75,4 @@ class HiveConfig(BaseModel):
     @classmethod
     def default(cls) -> HiveConfig:
         """Return a HiveConfig with sensible defaults."""
-        return cls()
+        return cls.model_validate({})

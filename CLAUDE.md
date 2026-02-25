@@ -62,11 +62,11 @@ Phases are a guide, not a gate. Use `wai phase show` / `wai phase next`.
 Before saying "done", run this checklist:
 
 ```
-[ ] wai handoff create <project>   # capture context for next session
 [ ] bd close <id>                  # mark completed issues
+[ ] git add <files> && git commit  # commit after EVERY completed task (mandatory)
 [ ] bd sync --from-main            # pull beads updates
+[ ] wai handoff create <project>   # capture context for next session
 [ ] wai reflect                    # update CLAUDE.md with project patterns (every ~5 sessions)
-[ ] git add <files> && git commit  # commit code + handoff
 ```
 
 ### Autonomous Loop
@@ -75,9 +75,10 @@ One task per session. The resume loop:
 
 1. `wai prime` — orient (shows ⚡ RESUMING if mid-task)
 2. Work on the single task
-3. `wai close` — capture state (run this before every `/clear`)
-4. `git add <files> && git commit`
-5. `/clear` — fresh context
+3. `bd close <id>` — mark the beads issue complete
+4. `git add <files> && git commit` — **always commit after completing a task**
+5. `wai close` — capture state (run this before every `/clear`)
+6. `/clear` — fresh context
 
 → Next session: `wai prime` shows RESUMING with exact next steps.
 

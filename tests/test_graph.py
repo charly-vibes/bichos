@@ -106,3 +106,58 @@ def test_skips_syntax_errors(tmp_path: Path) -> None:
     names = {meta.name for _, meta in g.all_nodes()}
     assert "ok" in names
     # bad.py was skipped — no crash
+
+
+# ── excluded directories ──────────────────────────────────────────────────────
+
+
+def test_excludes_venv_via_gitignore(tmp_path: Path) -> None:
+    (tmp_path / ".gitignore").write_text(".venv/\n", encoding="utf-8")
+    (tmp_path / "app.py").write_text("def real_func(): pass\n", encoding="utf-8")
+    venv = tmp_path / ".venv" / "lib" / "python3.12" / "site-packages"
+    venv.mkdir(parents=True)
+    (venv / "lib_func.py").write_text("def lib_func(): pass\n", encoding="utf-8")
+    g = build_code_graph(tmp_path)
+    names = {meta.name for _, meta in g.all_nodes()}
+    assert "real_func" in names
+    assert "lib_func" not in names
+
+
+def test_excludes_venv_fallback_no_gitignore(tmp_path: Path) -> None:
+    # No .gitignore — fallback list must still exclude .venv
+    (tmp_path / "app.py").write_text("def real_func(): pass\n", encoding="utf-8")
+    venv = tmp_path / ".venv"
+    venv.mkdir()
+    (venv / "lib_func.py").write_text("def lib_func(): pass\n", encoding="utf-8")
+    g = build_code_graph(tmp_path)
+    names = {meta.name for _, meta in g.all_nodes()}
+    assert "real_func" in names
+    assert "lib_func" not in names
+
+
+@pytest.mark.parametrize(
+    "excluded_dir",
+    [
+        ".venv",
+        "venv",
+        "__pycache__",
+        ".git",
+        "node_modules",
+        "dist",
+        "build",
+        ".mypy_cache",
+        ".ruff_cache",
+        ".pytest_cache",
+        ".tox",
+    ],
+)
+def test_excludes_common_dirs_fallback(tmp_path: Path, excluded_dir: str) -> None:
+    # No .gitignore — fallback + always-exclude list applies
+    (tmp_path / "app.py").write_text("def real_func(): pass\n", encoding="utf-8")
+    excluded = tmp_path / excluded_dir
+    excluded.mkdir()
+    (excluded / "ignored.py").write_text("def ignored_func(): pass\n", encoding="utf-8")
+    g = build_code_graph(tmp_path)
+    names = {meta.name for _, meta in g.all_nodes()}
+    assert "real_func" in names
+    assert "ignored_func" not in names

@@ -6,9 +6,55 @@ import ast
 from pathlib import Path
 
 import networkx as nx
+import pathspec
 from radon.complexity import cc_visit
 
 from bichos.graph.models import CodeGraph, NodeMeta
+
+# Directories always excluded regardless of .gitignore
+_ALWAYS_EXCLUDE: frozenset[str] = frozenset({"__pycache__", ".git"})
+
+# Fallback exclusions when no .gitignore is present
+_FALLBACK_EXCLUDE: frozenset[str] = frozenset(
+    {
+        ".venv",
+        "venv",
+        "env",
+        "ENV",
+        "node_modules",
+        "dist",
+        "build",
+        ".mypy_cache",
+        ".ruff_cache",
+        ".pytest_cache",
+        ".tox",
+        "site-packages",
+        ".eggs",
+    }
+)
+
+
+def _collect_py_files(root: Path, max_files: int) -> list[Path]:
+    """Return .py files under root, respecting .gitignore when present."""
+    gitignore_path = root / ".gitignore"
+    if gitignore_path.exists():
+        spec = pathspec.PathSpec.from_lines(
+            "gitignore", gitignore_path.read_text(encoding="utf-8").splitlines()
+        )
+
+        def _ignored(p: Path) -> bool:
+            rel = str(p.relative_to(root))
+            parts = p.relative_to(root).parts
+            return spec.match_file(rel) or any(
+                part in _ALWAYS_EXCLUDE for part in parts
+            )
+    else:
+        combined = _ALWAYS_EXCLUDE | _FALLBACK_EXCLUDE
+
+        def _ignored(p: Path) -> bool:
+            return any(part in combined for part in p.relative_to(root).parts)
+
+    return sorted(p for p in root.rglob("*.py") if not _ignored(p))[:max_files]
 
 
 def _extract_calls(tree: ast.AST) -> list[str]:
@@ -49,7 +95,7 @@ def build_code_graph(root: Path, max_files: int = 500) -> CodeGraph:
         A :class:`CodeGraph` wrapping a NetworkX DiGraph.
     """
     graph: nx.DiGraph[str] = nx.DiGraph()
-    py_files = sorted(root.rglob("*.py"))[:max_files]
+    py_files = _collect_py_files(root, max_files)
 
     # First pass: register all function/class nodes
     node_sources: dict[str, str] = {}  # qualified_name → source text of function

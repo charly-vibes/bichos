@@ -69,21 +69,33 @@ Before saying "done", run this checklist:
 [ ] wai reflect                    # update CLAUDE.md with project patterns (every ~5 sessions)
 ```
 
-### Autonomous Loop
+### Autonomous Orchestration Pattern
 
-One task per session. The resume loop:
+**The main agent is an orchestrator only — it never holds implementation context.**
+If you are writing source files directly in the main agent, you are doing it wrong.
+Delegate all implementation to subagents; keep the main context for orientation and commit.
 
-1. `wai prime` — orient (shows ⚡ RESUMING if mid-task)
-2. Work on the single task
-3. `bd close <id>` — mark the beads issue complete
-4. `git add <files> && git commit` — **always commit after completing a task**
-5. `wai close` — capture state (run this before every `/clear`)
-6. `/clear` — fresh context
+The loop (one task per iteration):
 
-→ Next session: `wai prime` shows RESUMING with exact next steps.
+```
+1. wai prime + bd ready          → orient, pick ONE task
+2. bd show <id>                  → verify ticket is self-contained
+   └─ if not: /bd:review <id>    → enrich description first
+3. Task(general-purpose, "...")  → spawn subagent with the full ticket description
+4. Review result                 → confirm tests pass + lint clean
+5. bd close <id>                 → mark complete
+6. git add <files> && git commit → MANDATORY after every task
+7. Check context usage           → if >30%, run wai close then /clear
+```
 
-When context reaches ~40%: run `wai close`, then `/clear`.
-Do NOT skip `wai close` — it enables resume detection.
+**Key rules:**
+- ONE ticket = ONE subagent invocation. Never chain two tickets in the same subagent.
+- The subagent prompt = the beads ticket description verbatim (that's why they must be self-contained).
+- Never implement files yourself in the main agent; review and commit only.
+- Context warning thresholds: >30% → plan to clear after this task. >40% → clear now.
+
+→ Next session: `wai prime` shows ⚡ RESUMING with exact next steps.
+Do NOT skip `wai close` before `/clear` — it enables resume detection.
 
 ## Quick Reference
 
@@ -109,6 +121,14 @@ bd show <id>                 # Issue details
 bd create --title="..."      # New issue
 bd update <id> --status=in_progress
 bd close <id>                # Complete work
+```
+
+### skills (slash commands)
+```
+/bd:review <id>              # Audit + enrich ticket for subagent handoff (Rule of 5)
+/bd:review all open          # Audit all open tickets at once
+/openspec:proposal           # Scaffold a new OpenSpec change
+/openspec:apply              # Implement an approved OpenSpec change
 ```
 
 ### openspec

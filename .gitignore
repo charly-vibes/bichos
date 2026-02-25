@@ -49,7 +49,7 @@ bichos-*.log
 
 # Tool directories
 .beads/
-.claude/
+.claude/settings.local.json   # personal machine settings, not project config
 .wai/
 
 # OS

@@ -3,6 +3,10 @@
 from __future__ import annotations
 
 import asyncio
+import json
+import os
+import re
+import statistics
 from pathlib import Path
 
 import typer
@@ -11,12 +15,25 @@ from rich.console import Console
 from rich.table import Table
 
 from bichos import __version__
-from bichos.config import HiveConfig
-from bichos.hive.models import AnalysisReport
+from bichos.config import ACOConfig, HiveConfig
+from bichos.hive.models import AnalysisReport, ReportMetadata, SummaryStats
 from bichos.hive.orchestrator import run_hive
 from bichos.logging import configure_logging
 from bichos.stigmergy.cache import PheromoneCache
 from bichos.stigmergy.models import BugPheromone, PheromoneType
+
+# Root directory for fixture datasets (resolved relative to this source file)
+_FIXTURES_ROOT: Path = Path(__file__).parent.parent.parent / "tests" / "fixtures"
+
+# Valid dataset names
+_VALID_DATASETS = frozenset(["simple", "medium", "all"])
+
+# Valid mode names and their ACO configs
+_MODE_ACO_CONFIGS: dict[str, ACOConfig] = {
+    "aco": ACOConfig.model_validate({"alpha": 1.0, "beta": 2.0}),
+    "complexity": ACOConfig.model_validate({"alpha": 0.0, "beta": 2.0}),
+    "random": ACOConfig.model_validate({"alpha": 0.0, "beta": 0.0}),
+}
 
 app = typer.Typer(
     name="bichos",
@@ -169,5 +186,235 @@ def stats(
 
     for p in top:
         table.add_row(p.function_name, f"{p.intensity:.2f}")
+
+    console.print(table)
+
+
+# ---------------------------------------------------------------------------
+# benchmark helpers
+# ---------------------------------------------------------------------------
+
+
+def _parse_manifest_bug_counts() -> dict[str, int]:
+    """Parse tests/fixtures/MANIFEST.md and return bug counts per dataset.
+
+    Returns a dict like {"simple": 4, "medium": 10}.
+    """
+    manifest_path = _FIXTURES_ROOT / "MANIFEST.md"
+    if not manifest_path.exists():
+        return {"simple": 0, "medium": 0}
+
+    text = manifest_path.read_text()
+    counts: dict[str, int] = {}
+
+    # Find each dataset section and count table rows (non-header, non-separator rows)
+    # Sections are delineated by "## <dataset_name>" headings
+    section_pattern = re.compile(r"^## (\w+)", re.MULTILINE)
+    table_row_pattern = re.compile(r"^\|[^-]", re.MULTILINE)
+
+    sections = list(section_pattern.finditer(text))
+    for idx, match in enumerate(sections):
+        section_name = match.group(1)
+        start = match.end()
+        end = sections[idx + 1].start() if idx + 1 < len(sections) else len(text)
+        section_text = text[start:end]
+
+        # Count data rows in the markdown table: rows starting with | that are
+        # not the header separator row (which contains only dashes and pipes)
+        rows = table_row_pattern.findall(section_text)
+        # Subtract 1 for the header row (first row)
+        data_rows = max(0, len(rows) - 1)
+        counts[section_name] = data_rows
+
+    return counts
+
+
+def _make_mock_report() -> AnalysisReport:
+    """Return an empty AnalysisReport suitable for --skip-slow mode."""
+    return AnalysisReport(
+        bugs=[],
+        summary_stats=SummaryStats(
+            total_functions_visited=0,
+            total_bugs_found=0,
+            unique_bugs=0,
+            avg_confidence=0.0,
+        ),
+        pheromone_heatmap={},
+        metadata=ReportMetadata(
+            repo_path="mock",
+            agent_count=1,
+            timestamp="",
+            total_tokens=0,
+        ),
+    )
+
+
+def _compute_metrics(
+    report: AnalysisReport,
+    fixture_path: Path,
+    ground_truth_count: int,
+) -> dict[str, float]:
+    """Compute precision and recall for a single run against ground truth.
+
+    A bug report is a true positive if its file_path contains the fixture
+    dataset directory name (relaxed match).
+
+    Returns:
+        Dict with keys: bugs_found, precision, recall
+    """
+    dataset_name = fixture_path.name  # e.g. "simple_bugs"
+    reported_bugs = len(report.bugs)
+
+    # True positives: reported bugs whose file_path contains the dataset dir name
+    true_positives = sum(1 for b in report.bugs if dataset_name in b.file_path)
+
+    precision = true_positives / reported_bugs if reported_bugs > 0 else 0.0
+    recall = true_positives / ground_truth_count if ground_truth_count > 0 else 0.0
+
+    return {
+        "bugs_found": float(reported_bugs),
+        "precision": precision,
+        "recall": recall,
+    }
+
+
+# ---------------------------------------------------------------------------
+# benchmark command
+# ---------------------------------------------------------------------------
+
+
+@app.command()
+def benchmark(
+    dataset: str = typer.Option(  # noqa: B008
+        "all", "--dataset", help="Dataset: simple, medium, all"
+    ),
+    modes: list[str] = typer.Option(  # noqa: B008
+        ["aco", "complexity", "random"], "--modes", help="Modes to benchmark"
+    ),
+    seeds: int = typer.Option(3, "--seeds", help="Number of random seeds per mode"),  # noqa: B008
+    skip_slow: bool = typer.Option(  # noqa: B008
+        False, "--skip-slow", help="Skip actual LLM calls, use mock results"
+    ),
+    output_file: Path | None = typer.Option(  # noqa: B008
+        None, "--output-file", help="Write JSON results to file"
+    ),
+) -> None:
+    """Benchmark the swarm across modes and fixture datasets."""
+    # Validate dataset
+    if dataset not in _VALID_DATASETS:
+        typer.echo(
+            f"Error: invalid --dataset {dataset!r}. "
+            f"Choose from: {', '.join(sorted(_VALID_DATASETS))}",
+            err=True,
+        )
+        raise typer.Exit(code=1)
+
+    # Validate modes
+    invalid_modes = [m for m in modes if m not in _MODE_ACO_CONFIGS]
+    if invalid_modes:
+        typer.echo(
+            f"Error: invalid mode(s): {invalid_modes}. "
+            f"Choose from: {', '.join(sorted(_MODE_ACO_CONFIGS))}",
+            err=True,
+        )
+        raise typer.Exit(code=1)
+
+    # Determine fixture paths
+    fixture_paths: list[Path] = []
+    if dataset in ("simple", "all"):
+        fixture_paths.append(_FIXTURES_ROOT / "simple_bugs")
+    if dataset in ("medium", "all"):
+        fixture_paths.append(_FIXTURES_ROOT / "medium_bugs")
+
+    # Load ground truth counts
+    bug_counts = _parse_manifest_bug_counts()
+    # Map fixture path name → planted bug count
+    ground_truth: dict[str, int] = {
+        "simple_bugs": bug_counts.get("simple_bugs", 4),
+        "medium_bugs": bug_counts.get("medium_bugs", 10),
+    }
+
+    # Determine whether to use real LLM calls
+    has_api_key = bool(
+        os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("OPENAI_API_KEY")
+    )
+    use_mock = skip_slow or not has_api_key
+
+    if not has_api_key and not skip_slow:
+        console.print(
+            "[yellow]Warning:[/yellow] No ANTHROPIC_API_KEY or OPENAI_API_KEY found. "
+            "Using mock results. Pass --skip-slow to suppress this warning."
+        )
+
+    # Results storage: mode → list of per-seed metrics
+    mode_results: dict[str, list[dict[str, float]]] = {m: [] for m in modes}
+
+    for mode in modes:
+        aco_config = _MODE_ACO_CONFIGS[mode]
+        config = HiveConfig.model_validate({"aco": aco_config.model_dump()})
+
+        for seed_idx in range(seeds):
+            for fixture_path in fixture_paths:
+                gt_count = ground_truth.get(fixture_path.name, 0)
+
+                if use_mock:
+                    report = _make_mock_report()
+                else:
+                    try:
+                        report = asyncio.run(run_hive(fixture_path, config))
+                    except Exception as exc:
+                        logger.warning(
+                            f"run_hive failed for {fixture_path} mode={mode} "
+                            f"seed={seed_idx}: {exc}"
+                        )
+                        report = _make_mock_report()
+
+                metrics = _compute_metrics(report, fixture_path, gt_count)
+                mode_results[mode].append(metrics)
+
+    # Aggregate per mode
+    aggregated: dict[str, dict[str, object]] = {}
+    for mode, seed_metrics in mode_results.items():
+        bugs_list = [m["bugs_found"] for m in seed_metrics]
+        prec_list = [m["precision"] for m in seed_metrics]
+        rec_list = [m["recall"] for m in seed_metrics]
+
+        aggregated[mode] = {
+            "seeds": seed_metrics,
+            "mean_bugs": statistics.mean(bugs_list) if bugs_list else 0.0,
+            "std_bugs": statistics.stdev(bugs_list) if len(bugs_list) > 1 else 0.0,
+            "mean_precision": statistics.mean(prec_list) if prec_list else 0.0,
+            "mean_recall": statistics.mean(rec_list) if rec_list else 0.0,
+        }
+
+    # Build output structure
+    output_data: dict[str, object] = {
+        "dataset": dataset,
+        "modes": aggregated,
+    }
+
+    # Write JSON output file if requested
+    if output_file is not None:
+        output_file.parent.mkdir(parents=True, exist_ok=True)
+        output_file.write_text(json.dumps(output_data, indent=2))
+        console.print(f"Results written to [cyan]{output_file}[/cyan]")
+
+    # Print rich summary table
+    table = Table(title=f"Benchmark Results (dataset={dataset})", show_lines=True)
+    table.add_column("Mode", style="bold cyan")
+    table.add_column("Mean Bugs", justify="right")
+    table.add_column("Std Bugs", justify="right")
+    table.add_column("Mean Precision", justify="right", style="green")
+    table.add_column("Mean Recall", justify="right", style="yellow")
+
+    for mode in modes:
+        agg = aggregated[mode]
+        table.add_row(
+            mode,
+            f"{agg['mean_bugs']:.2f}",
+            f"{agg['std_bugs']:.2f}",
+            f"{agg['mean_precision']:.3f}",
+            f"{agg['mean_recall']:.3f}",
+        )
 
     console.print(table)

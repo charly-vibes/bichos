@@ -252,3 +252,169 @@ def test_stats_empty_cache(tmp_path: Path) -> None:
 
     assert result.exit_code == 0
     assert "no pheromones" in result.output.lower()
+
+
+# ---------------------------------------------------------------------------
+# benchmark command
+# ---------------------------------------------------------------------------
+
+
+def _make_empty_report() -> AnalysisReport:
+    """Return a valid AnalysisReport with no bugs (suitable for mock responses)."""
+    return AnalysisReport(
+        bugs=[],
+        summary_stats=SummaryStats(
+            total_functions_visited=0,
+            total_bugs_found=0,
+            unique_bugs=0,
+            avg_confidence=0.0,
+        ),
+        pheromone_heatmap={},
+        metadata=ReportMetadata(
+            repo_path="/tmp/testrepo",
+            agent_count=1,
+            timestamp="2026-02-25T00:00:00+00:00",
+            total_tokens=0,
+        ),
+    )
+
+
+def test_benchmark_default_runs() -> None:
+    """benchmark with default args mocks run_hive and exits 0."""
+    mock_report = _make_empty_report()
+    mock_run_hive = AsyncMock(return_value=mock_report)
+
+    with patch("bichos.cli.run_hive", new=mock_run_hive):
+        result = runner.invoke(app, ["benchmark", "--skip-slow"])
+
+    assert result.exit_code == 0, result.output
+
+
+def test_benchmark_skip_slow_uses_mock() -> None:
+    """--skip-slow flag means run_hive is NOT called with real invocation."""
+    mock_run_hive = AsyncMock(return_value=_make_empty_report())
+
+    with patch("bichos.cli.run_hive", new=mock_run_hive):
+        result = runner.invoke(app, ["benchmark", "--skip-slow"])
+
+    assert result.exit_code == 0, result.output
+    # With --skip-slow, the mock run_hive should not have been called
+    mock_run_hive.assert_not_called()
+
+
+def test_benchmark_dataset_simple() -> None:
+    """--dataset simple passes only simple_bugs paths to run_hive."""
+    captured_paths: list[Path] = []
+    mock_report = _make_empty_report()
+
+    async def _capture_run_hive(repo_path: Path, config: object) -> AnalysisReport:
+        captured_paths.append(repo_path)
+        return mock_report
+
+    with patch("bichos.cli.run_hive", new=_capture_run_hive):
+        result = runner.invoke(
+            app,
+            ["benchmark", "--dataset", "simple", "--seeds", "1"],
+        )
+
+    assert result.exit_code == 0, result.output
+    # All captured paths should be within the simple_bugs fixture dir
+    for p in captured_paths:
+        assert "simple_bugs" in str(p), f"Expected simple_bugs path, got {p}"
+    assert "medium_bugs" not in " ".join(str(p) for p in captured_paths)
+
+
+def test_benchmark_dataset_medium() -> None:
+    """--dataset medium passes only medium_bugs paths to run_hive."""
+    captured_paths: list[Path] = []
+    mock_report = _make_empty_report()
+
+    async def _capture_run_hive(repo_path: Path, config: object) -> AnalysisReport:
+        captured_paths.append(repo_path)
+        return mock_report
+
+    with patch("bichos.cli.run_hive", new=_capture_run_hive):
+        result = runner.invoke(
+            app,
+            ["benchmark", "--dataset", "medium", "--seeds", "1"],
+        )
+
+    assert result.exit_code == 0, result.output
+    for p in captured_paths:
+        assert "medium_bugs" in str(p), f"Expected medium_bugs path, got {p}"
+    assert "simple_bugs" not in " ".join(str(p) for p in captured_paths)
+
+
+def test_benchmark_single_mode() -> None:
+    """--modes aco results in only aco mode appearing in output JSON."""
+    mock_report = _make_empty_report()
+    mock_run_hive = AsyncMock(return_value=mock_report)
+
+    with (
+        patch("bichos.cli.run_hive", new=mock_run_hive),
+        patch("bichos.cli._FIXTURES_ROOT", Path("/nonexistent")),
+    ):
+        result = runner.invoke(
+            app,
+            ["benchmark", "--skip-slow", "--modes", "aco"],
+        )
+
+    assert result.exit_code == 0, result.output
+    # The output should mention aco but not complexity or random
+    assert "aco" in result.output
+    assert "complexity" not in result.output
+    assert "random" not in result.output
+
+
+def test_benchmark_output_file(tmp_path: Path) -> None:
+    """--output-file creates the file at the specified path."""
+    output_file = tmp_path / "results.json"
+    mock_run_hive = AsyncMock(return_value=_make_empty_report())
+
+    with patch("bichos.cli.run_hive", new=mock_run_hive):
+        result = runner.invoke(
+            app,
+            ["benchmark", "--skip-slow", "--output-file", str(output_file)],
+        )
+
+    assert result.exit_code == 0, result.output
+    assert output_file.exists(), "Output file was not created"
+
+
+def test_benchmark_output_json_structure(tmp_path: Path) -> None:
+    """Output JSON has required keys: dataset, modes, and per-mode stats."""
+    output_file = tmp_path / "bench.json"
+    mock_run_hive = AsyncMock(return_value=_make_empty_report())
+
+    with patch("bichos.cli.run_hive", new=mock_run_hive):
+        result = runner.invoke(
+            app,
+            [
+                "benchmark",
+                "--skip-slow",
+                "--modes",
+                "aco",
+                "--seeds",
+                "1",
+                "--output-file",
+                str(output_file),
+            ],
+        )
+
+    assert result.exit_code == 0, result.output
+    assert output_file.exists()
+    data = json.loads(output_file.read_text())
+    assert "dataset" in data, f"Missing 'dataset' key: {data}"
+    assert "modes" in data, f"Missing 'modes' key: {data}"
+    assert "aco" in data["modes"], f"Missing 'aco' in modes: {data['modes']}"
+    mode_data = data["modes"]["aco"]
+    assert "seeds" in mode_data
+    assert "mean_bugs" in mode_data
+    assert "mean_precision" in mode_data
+    assert "mean_recall" in mode_data
+
+
+def test_benchmark_invalid_dataset() -> None:
+    """--dataset with an unknown value causes exit code 1."""
+    result = runner.invoke(app, ["benchmark", "--dataset", "badname"])
+    assert result.exit_code == 1

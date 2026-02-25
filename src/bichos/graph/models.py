@@ -26,7 +26,7 @@ class NodeMeta:
 class CodeGraph:
     """Thin wrapper around a NetworkX DiGraph of code entities."""
 
-    graph: nx.DiGraph
+    graph: nx.DiGraph[str]
     root: Path
     _meta_cache: dict[str, NodeMeta] = field(default_factory=dict, repr=False)
 

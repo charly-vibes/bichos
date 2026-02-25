@@ -5,6 +5,7 @@ from __future__ import annotations
 import threading
 from collections.abc import Iterator
 from pathlib import Path
+from typing import cast
 
 import diskcache
 
@@ -62,7 +63,7 @@ class PheromoneCache:
         key = pheromone.key
 
         with self._lock:
-            existing: AnyPheromone | None = self._cache.get(key)  # type: ignore[assignment]
+            existing: AnyPheromone | None = self._cache.get(key)
             if existing is not None:
                 new_intensity = (
                     1.0 - self._rho
@@ -72,7 +73,8 @@ class PheromoneCache:
 
     def get(self, key: str) -> AnyPheromone | None:
         """Retrieve a pheromone by key, or None if absent/expired."""
-        return self._cache.get(key)  # type: ignore[return-value]
+        result = self._cache.get(key)
+        return cast(AnyPheromone | None, result)
 
     def delete(self, key: str) -> None:
         """Remove a pheromone from the cache."""
@@ -91,7 +93,7 @@ class PheromoneCache:
         keys = list(self._cache.iterkeys())
         for key in keys:
             with self._lock:
-                entry: AnyPheromone | None = self._cache.get(key)  # type: ignore[assignment]
+                entry: AnyPheromone | None = self._cache.get(key)
                 if entry is None:
                     continue
                 new_intensity = (1.0 - self._rho) * entry.intensity
@@ -109,7 +111,7 @@ class PheromoneCache:
     def iter_by_type(self, pheromone_type: PheromoneType) -> Iterator[AnyPheromone]:
         """Iterate over all live pheromones of a given type."""
         for key in self._cache.iterkeys():
-            entry: AnyPheromone | None = self._cache.get(key)  # type: ignore[assignment]
+            entry: AnyPheromone | None = self._cache.get(key)
             if entry is not None and entry.pheromone_type == pheromone_type:
                 yield entry
 
@@ -125,7 +127,7 @@ class PheromoneCache:
         """Return entry counts per pheromone type."""
         counts: dict[str, int] = {t.value: 0 for t in PheromoneType}
         for key in self._cache.iterkeys():
-            entry: Pheromone | None = self._cache.get(key)  # type: ignore[assignment]
+            entry: Pheromone | None = self._cache.get(key)
             if entry is not None:
                 counts[entry.pheromone_type.value] += 1
         return counts

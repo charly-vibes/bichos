@@ -29,7 +29,7 @@ def _complexity_for(source: str, name: str) -> int:
         results = cc_visit(source)
         for block in results:
             if block.name == name:
-                return block.complexity
+                return int(block.complexity)
     except Exception:
         pass
     return 1
@@ -48,7 +48,7 @@ def build_code_graph(root: Path, max_files: int = 500) -> CodeGraph:
     Returns:
         A :class:`CodeGraph` wrapping a NetworkX DiGraph.
     """
-    graph: nx.DiGraph = nx.DiGraph()
+    graph: nx.DiGraph[str] = nx.DiGraph()
     py_files = sorted(root.rglob("*.py"))[:max_files]
 
     # First pass: register all function/class nodes

@@ -192,6 +192,35 @@ async def test_analyze_code_unknown_function(ant_deps: AntDeps) -> None:
     assert "not found" in result.lower() or "nonexistent" in result
 
 
+@pytest.mark.asyncio
+async def test_analyze_code_file_not_found(
+    tmp_path: Path, hive_config: HiveConfig
+) -> None:
+    """analyze_code returns '[Source file not found:' when the file is absent."""
+    nodes = {
+        "mymod.myfunc": _node("myfunc", file_path="nonexistent.py", lineno=5),
+    }
+    graph = _make_graph_with_nodes(nodes, [])
+    # Use a root path that definitely does not exist on disk.
+    graph_missing_root = CodeGraph(graph=graph.graph, root=Path("/nonexistent/root"))
+    cache = PheromoneCache(cache_dir=tmp_path / "cache")
+    deps = AntDeps(
+        pheromone_cache=cache,
+        code_graph=graph_missing_root,
+        config=hive_config,
+        rng=random.Random(0),
+        llm_semaphore=asyncio.Semaphore(1),
+    )
+
+    from bichos.agents.ant.tools import analyze_code
+
+    ctx = _make_ctx(deps)
+    result = await analyze_code(ctx, "mymod.myfunc")
+
+    assert "[Source file not found:" in result
+    assert "nonexistent.py" in result
+
+
 # ---------------------------------------------------------------------------
 # report_bug
 # ---------------------------------------------------------------------------

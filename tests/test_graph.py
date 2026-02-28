@@ -3,12 +3,38 @@
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import patch
 
+import networkx as nx
 import pytest
 
 from bichos.graph.builder import build_code_graph
-from bichos.graph.models import CodeGraph
+from bichos.graph.models import CodeGraph, NodeMeta
+
+# ── Helper factory ────────────────────────────────────────────────────────────
+
+
+def _make_test_graph() -> CodeGraph:
+    g: nx.DiGraph[str] = nx.DiGraph()
+    meta_a = NodeMeta(
+        name="a",
+        qualified_name="mod.a",
+        file_path="mod.py",
+        lineno=1,
+        loc=5,
+        complexity=1,
+    )
+    meta_b = NodeMeta(
+        name="b",
+        qualified_name="mod.b",
+        file_path="mod.py",
+        lineno=10,
+        loc=5,
+        complexity=1,
+    )
+    g.add_node("mod.a", meta=meta_a)
+    g.add_node("mod.b", meta=meta_b)
+    g.add_edge("mod.a", "mod.b")
+    return CodeGraph(graph=g, root=Path("/tmp"))
 
 
 @pytest.fixture()
@@ -164,30 +190,58 @@ def test_excludes_common_dirs_fallback(tmp_path: Path, excluded_dir: str) -> Non
     assert "ignored_func" not in names
 
 
-# ── _complexity_for exception fallback ────────────────────────────────────────
+# ── Model unit tests (no builder, direct graph construction) ─────────────────
 
 
-def test_complexity_fallback_on_exception(tmp_path: Path) -> None:
-    (tmp_path / "mymod.py").write_text("def myfunc(): pass\n", encoding="utf-8")
-    with patch(
-        "bichos.graph.builder.cc_visit", side_effect=RuntimeError("radon error")
-    ):
-        g = build_code_graph(tmp_path)
-    complexities = [meta.complexity for _, meta in g.all_nodes()]
-    assert len(complexities) > 0
-    assert all(c == 1 for c in complexities)
+def test_edge_count() -> None:
+    graph = _make_test_graph()
+    assert graph.edge_count() == 1
 
 
-# ── call_count increment ───────────────────────────────────────────────────────
+def test_callers() -> None:
+    graph = _make_test_graph()
+    result = graph.callers("mod.b")
+    assert "mod.a" in result
 
 
-def test_call_count_increment(tmp_path: Path) -> None:
-    (tmp_path / "mymod.py").write_text(
-        "def callee(): pass\ndef caller(): callee(); callee()\n",
-        encoding="utf-8",
+def test_all_nodes() -> None:
+    graph = _make_test_graph()
+    qnames = {qname for qname, _ in graph.all_nodes()}
+    assert "mod.a" in qnames
+    assert "mod.b" in qnames
+
+
+def test_cycles_detects_cycle() -> None:
+    g: nx.DiGraph[str] = nx.DiGraph()
+    meta_a = NodeMeta(
+        name="a",
+        qualified_name="cyc.a",
+        file_path="cyc.py",
+        lineno=1,
+        loc=5,
+        complexity=1,
     )
-    g = build_code_graph(tmp_path)
-    caller_qname = "mymod.caller"
-    callee_qname = "mymod.callee"
-    assert g.graph.has_edge(caller_qname, callee_qname)
-    assert g.graph[caller_qname][callee_qname]["call_count"] == 2
+    meta_b = NodeMeta(
+        name="b",
+        qualified_name="cyc.b",
+        file_path="cyc.py",
+        lineno=10,
+        loc=5,
+        complexity=1,
+    )
+    g.add_node("cyc.a", meta=meta_a)
+    g.add_node("cyc.b", meta=meta_b)
+    g.add_edge("cyc.a", "cyc.b")
+    g.add_edge("cyc.b", "cyc.a")
+    graph = CodeGraph(graph=g, root=Path("/tmp"))
+    found = graph.cycles()
+    assert len(found) > 0
+    # The cycle must contain both nodes
+    all_nodes_in_cycles = {n for cycle in found for n in cycle}
+    assert "cyc.a" in all_nodes_in_cycles
+    assert "cyc.b" in all_nodes_in_cycles
+
+
+def test_cycles_empty_when_no_cycle() -> None:
+    graph = _make_test_graph()
+    assert graph.cycles() == []

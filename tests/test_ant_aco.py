@@ -67,6 +67,22 @@ def test_single_candidate_probability_is_one() -> None:
     assert abs(probs["only"] - 1.0) < 1e-9
 
 
+def test_zero_total_fallback_returns_uniform() -> None:
+    """When all weights underflow to 0.0, return uniform probabilities."""
+    candidates = ["a", "b", "c"]
+    probs = compute_probabilities(
+        candidates,
+        pheromone={"a": 0.0, "b": 0.0, "c": 0.0},
+        heuristic={"a": 0.0, "b": 0.0, "c": 0.0},
+        alpha=10000.0,
+        beta=10000.0,
+    )
+    expected = pytest.approx(1.0 / 3, abs=1e-9)
+    assert probs["a"] == expected
+    assert probs["b"] == expected
+    assert probs["c"] == expected
+
+
 # ── stochastic_select ─────────────────────────────────────────────────────────
 
 

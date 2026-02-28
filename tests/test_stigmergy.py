@@ -237,3 +237,88 @@ def test_stats(cache: PheromoneCache) -> None:
     s = cache.stats()
     assert s["bug"] == 1
     assert s["curvature"] == 0
+
+
+# ── Eviction edge cases ────────────────────────────────────────────────────────
+
+
+def test_evict_none_guard(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """None guard (line 98): entry disappears between iterkeys() and get()."""
+    c = PheromoneCache(cache_dir=tmp_path / "none_guard_cache", rho=0.1)
+    bug = BugPheromone(
+        key="bug:mod.fn",
+        depositor="ant-1",
+        severity=2,
+        file_path="mod.py",
+        function_name="fn",
+        description="d",
+        intensity=10.0,
+    )
+    c.deposit(bug)
+
+    # Capture the real key list before patching
+    real_keys = list(c._cache.iterkeys())
+
+    class _FakeCache:
+        """Stub that reports keys but returns None for every get()."""
+
+        def iterkeys(self) -> list[str]:
+            return real_keys
+
+        def get(self, key: str, default: object = None) -> None:  # noqa: ARG002
+            return None
+
+        def delete(self, key: str) -> None:  # noqa: ARG002
+            pass
+
+        def set(self, key: str, value: object, expire: object = None) -> None:  # noqa: ARG002
+            pass
+
+    monkeypatch.setattr(c, "_cache", _FakeCache())
+    pruned = c.evaporate_all()
+    assert pruned == 0
+
+
+def test_evict_below_min_prunes_entry(tmp_path: Path) -> None:
+    """Entry deleted when decayed intensity drops below min_intensity."""
+    c = PheromoneCache(
+        cache_dir=tmp_path / "evict_cache",
+        rho=0.99,
+        min_intensity=50.0,
+    )
+    bug = BugPheromone(
+        key="bug:mod.fn",
+        depositor="ant-1",
+        severity=2,
+        file_path="mod.py",
+        function_name="fn",
+        description="d",
+        intensity=1.0,  # after 99% decay: (1-0.99)*1.0 = 0.01 < 50.0 → deleted
+    )
+    c.deposit(bug)
+    pruned = c.evaporate_all()
+    assert pruned == 1
+    assert c.get("bug:mod.fn") is None
+
+
+def test_evict_surviving_entry_updated(tmp_path: Path) -> None:
+    """Surviving entry is updated with decayed intensity and a refreshed TTL."""
+    c = PheromoneCache(
+        cache_dir=tmp_path / "survive_cache",
+        rho=0.1,
+    )
+    bug = BugPheromone(
+        key="bug:mod.fn",
+        depositor="ant-1",
+        severity=2,
+        file_path="mod.py",
+        function_name="fn",
+        description="d",
+        intensity=90.0,  # after 10% decay: (1-0.1)*90.0 = 81.0 >= 0.01 → kept
+    )
+    c.deposit(bug)
+    pruned = c.evaporate_all()
+    assert pruned == 0
+    entry = c.get("bug:mod.fn")
+    assert entry is not None
+    assert abs(entry.intensity - 81.0) < 0.01

@@ -30,6 +30,7 @@ from bichos.graph.models import CodeGraph, NodeMeta
 from bichos.hive.models import AnalysisReport, ReportMetadata, SummaryStats, SwarmState
 from bichos.hive.orchestrator import InitNode, JoinNode, ReportNode, SplitNode, run_hive
 from bichos.stigmergy.cache import PheromoneCache
+from bichos.stigmergy.models import BugPheromone
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -690,6 +691,74 @@ class TestReportNode:
         assert report.metadata.total_tokens >= 0
         assert report.metadata.agent_count >= 1
         assert all(0.0 <= v <= 100.0 for v in report.pheromone_heatmap.values())
+
+    @pytest.mark.asyncio
+    async def test_heatmap_single_bug_pheromone(self, tmp_path: Path) -> None:
+        """A single BugPheromone deposited in the cache appears in the heatmap."""
+        cache = _make_pheromone_cache(tmp_path)
+        pheromone = BugPheromone(
+            key="bug:foo.bar:1",
+            depositor="ant-0",
+            severity=3,
+            file_path="src/foo.py",
+            function_name="foo.bar",
+            description="SQL injection risk",
+            intensity=50.0,
+        )
+        cache.deposit(pheromone)
+
+        state = SwarmState(
+            code_graph=_make_code_graph(),
+            pheromone_cache=cache,
+            config=_make_config(),
+        )
+        node = ReportNode(deduplicated_bugs=[], repo_path=tmp_path)
+        ctx = GraphRunContext(state=state, deps=None)
+        end = await node.run(ctx)
+
+        report = end.data
+        assert "foo.bar" in report.pheromone_heatmap
+        assert report.pheromone_heatmap["foo.bar"] == pytest.approx(50.0)
+
+    @pytest.mark.asyncio
+    async def test_heatmap_accumulates_two_pheromones_at_same_location(
+        self, tmp_path: Path
+    ) -> None:
+        """Two BugPheromones sharing function_name but with distinct keys accumulate."""
+        cache = _make_pheromone_cache(tmp_path)
+        p1 = BugPheromone(
+            key="bug:foo.bar:1",
+            depositor="ant-0",
+            severity=2,
+            file_path="src/foo.py",
+            function_name="foo.bar",
+            description="First finding",
+            intensity=30.0,
+        )
+        p2 = BugPheromone(
+            key="bug:foo.bar:2",
+            depositor="ant-1",
+            severity=4,
+            file_path="src/foo.py",
+            function_name="foo.bar",
+            description="Second finding",
+            intensity=40.0,
+        )
+        cache.deposit(p1)
+        cache.deposit(p2)
+
+        state = SwarmState(
+            code_graph=_make_code_graph(),
+            pheromone_cache=cache,
+            config=_make_config(),
+        )
+        node = ReportNode(deduplicated_bugs=[], repo_path=tmp_path)
+        ctx = GraphRunContext(state=state, deps=None)
+        end = await node.run(ctx)
+
+        report = end.data
+        assert "foo.bar" in report.pheromone_heatmap
+        assert report.pheromone_heatmap["foo.bar"] == pytest.approx(70.0)
 
 
 class TestRunHive:

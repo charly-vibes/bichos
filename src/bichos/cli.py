@@ -115,6 +115,14 @@ def analyze(
     seed: int | None = typer.Option(  # noqa: B008
         None, "--seed", help="Random seed for deterministic mode."
     ),
+    model: str | None = typer.Option(  # noqa: B008
+        None, "--model", help="Model in <provider>:<name> format, e.g. openai:gpt-4o."
+    ),
+    base_url: str | None = typer.Option(  # noqa: B008
+        None,
+        "--base-url",
+        help="Override model base_url, e.g. http://localhost:11434/v1.",
+    ),
 ) -> None:
     """Analyse a repository using an ant swarm."""
     if not path.exists():
@@ -140,6 +148,25 @@ def analyze(
         except Exception as e:
             typer.echo(f"Error: invalid --agents value: {e}", err=True)
             raise typer.Exit(code=1) from e
+
+    if model is not None or base_url is not None:
+        model_updates: dict[str, object] = {}
+        if model is not None:
+            if ":" not in model:
+                typer.echo(
+                    f"Error: --model must be in <provider>:<name> format,"
+                    f" got {model!r}",
+                    err=True,
+                )
+                raise typer.Exit(code=1)
+            provider, name = model.split(":", 1)
+            model_updates["provider"] = provider
+            model_updates["name"] = name
+        if base_url is not None:
+            model_updates["base_url"] = base_url
+        hive_config = hive_config.model_copy(
+            update={"model": hive_config.model.model_copy(update=model_updates)}
+        )
 
     if seed is not None:
         logger.debug(f"Deterministic mode: seed={seed}")

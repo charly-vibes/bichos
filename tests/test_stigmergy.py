@@ -322,3 +322,12 @@ def test_evict_surviving_entry_updated(tmp_path: Path) -> None:
     entry = c.get("bug:mod.fn")
     assert entry is not None
     assert abs(entry.intensity - 81.0) < 0.01
+
+
+# ── Context manager protocol ───────────────────────────────────────────────────
+
+
+def test_cache_context_manager_closes_on_exit(tmp_path: Path) -> None:
+    """PheromoneCache supports 'with': __enter__ returns self, __exit__ calls close."""
+    with PheromoneCache(cache_dir=tmp_path / "ctx_cache", rho=0.1) as c:
+        assert isinstance(c, PheromoneCache)

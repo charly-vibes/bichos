@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from unittest.mock import patch
 
 import networkx as nx
 import pytest
@@ -245,3 +246,41 @@ def test_cycles_detects_cycle() -> None:
 def test_cycles_empty_when_no_cycle() -> None:
     graph = _make_test_graph()
     assert graph.cycles() == []
+
+
+def test_critical_nodes_returns_ranked_list() -> None:
+    graph = _make_test_graph()
+    results = graph.critical_nodes(top_n=2)
+    assert len(results) <= 2
+    assert all(
+        isinstance(name, str) and isinstance(score, float) for name, score in results
+    )
+
+
+# ── _complexity_for exception fallback ────────────────────────────────────────
+
+
+def test_complexity_fallback_on_exception(tmp_path: Path) -> None:
+    (tmp_path / "mymod.py").write_text("def myfunc(): pass\n", encoding="utf-8")
+    with patch(
+        "bichos.graph.builder.cc_visit", side_effect=RuntimeError("radon error")
+    ):
+        g = build_code_graph(tmp_path)
+    complexities = [meta.complexity for _, meta in g.all_nodes()]
+    assert len(complexities) > 0
+    assert all(c == 1 for c in complexities)
+
+
+# ── call_count increment ───────────────────────────────────────────────────────
+
+
+def test_call_count_increment(tmp_path: Path) -> None:
+    (tmp_path / "mymod.py").write_text(
+        "def callee(): pass\ndef caller(): callee(); callee()\n",
+        encoding="utf-8",
+    )
+    g = build_code_graph(tmp_path)
+    caller_qname = "mymod.caller"
+    callee_qname = "mymod.callee"
+    assert g.graph.has_edge(caller_qname, callee_qname)
+    assert g.graph[caller_qname][callee_qname]["call_count"] == 2

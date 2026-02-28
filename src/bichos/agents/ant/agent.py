@@ -5,6 +5,7 @@ from __future__ import annotations
 from pydantic_ai import Agent
 
 from bichos.agents.ant.models import AntDeps, ExplorationResult
+from bichos.config import build_model
 
 # ---------------------------------------------------------------------------
 # Agent definition
@@ -68,10 +69,26 @@ async def run_ant(
             else "Begin exploration from the highest-pheromone entry point."
         )
 
+        # build_model() must only be called when no test override is active,
+        # because it requires a live API key.  The override ContextVar is set
+        # by forager.override(model=TestModel(...)) and takes precedence over
+        # the model= argument inside _get_model(), but the argument expression
+        # is still evaluated eagerly by Python before .run() is called.
+        #
+        # NOTE: forager._override_model is a private ContextVar on pydantic_ai's
+        # Agent class (pydantic-ai>=0.0.24; see agent/__init__.py:403).  There is
+        # no public API to detect whether override() is active.  If a future
+        # pydantic_ai release renames or removes _override_model, the guard must
+        # be updated.  The test test_override_model_attr_exists will catch this.
+        model_arg = (
+            build_model(deps.config.model)
+            if not forager._override_model.get()
+            else deps.config.ant_model
+        )
         result = await forager.run(
             user_prompt,
             deps=deps,
-            model=deps.config.ant_model,
+            model=model_arg,
         )
 
     return result.output

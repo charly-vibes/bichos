@@ -76,6 +76,29 @@ def _make_simple_ant_deps(tmp_path: Path, semaphore_limit: int = 1) -> AntDeps:
 
 
 # ---------------------------------------------------------------------------
+# Guard test — pydantic_ai private attribute contract
+# ---------------------------------------------------------------------------
+
+
+def test_override_model_attr_exists() -> None:
+    """Guard: pydantic_ai Agent must expose _override_model as a ContextVar.
+
+    agent.py relies on forager._override_model.get() to detect test overrides
+    (pydantic_ai Agent._override_model, agent/__init__.py:403).  This test
+    will fail loudly if a pydantic_ai upgrade renames or removes the attribute,
+    prompting a fix to the eager-evaluation guard in run_ant().
+    """
+    from contextvars import ContextVar
+
+    assert hasattr(forager, "_override_model"), (
+        "pydantic_ai Agent no longer has _override_model; update run_ant() guard"
+    )
+    assert isinstance(forager._override_model, ContextVar), (
+        "_override_model is no longer a ContextVar; update run_ant() guard"
+    )
+
+
+# ---------------------------------------------------------------------------
 # Unit tests — ExplorationResult model
 # ---------------------------------------------------------------------------
 

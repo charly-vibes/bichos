@@ -188,6 +188,7 @@ See [openspec/AGENTS.md](./openspec/AGENTS.md) for detailed workflow.
 ## 📖 Documentation
 
 - **Research:** [research.md](./research.md) - Theoretical foundation and bio-mimetic patterns
+- **FAQ:** [docs/FAQ.md](./docs/FAQ.md) - Frequently Asked Questions
 - **OpenSpec:** [openspec/](./openspec/) - Specifications and change proposals
 - **Project Context:** [openspec/project.md](./openspec/project.md) - Conventions and constraints
 
@@ -205,4 +206,4 @@ See [openspec/AGENTS.md](./openspec/AGENTS.md) for detailed workflow.
 
 **Status:** 🟠 Proposal Phase - Implementation starts after approval
 
-**Questions?** Check [research.md](./research.md) or open an issue for discussion.
+**Questions?** Check the [FAQ](./docs/FAQ.md), [research.md](./research.md), or open an issue for discussion.

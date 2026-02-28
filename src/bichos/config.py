@@ -2,10 +2,18 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Any
 
 from pydantic import BaseModel, Field, model_validator
+from pydantic_ai.models import Model
+from pydantic_ai.models.anthropic import AnthropicModel
+from pydantic_ai.models.openai import OpenAIChatModel
+from pydantic_ai.providers.anthropic import AnthropicProvider
+from pydantic_ai.providers.ollama import OllamaProvider
+from pydantic_ai.providers.openai import OpenAIProvider
+from pydantic_ai.providers.openrouter import OpenRouterProvider
 
 
 class ModelConfig(BaseModel):
@@ -114,3 +122,54 @@ class HiveConfig(BaseModel):
     def default(cls) -> HiveConfig:
         """Return a HiveConfig with sensible defaults."""
         return cls.model_validate({})
+
+
+# ---------------------------------------------------------------------------
+# Model factory helpers
+# ---------------------------------------------------------------------------
+
+
+def _resolve_key(cfg: ModelConfig, default_env: str) -> str:
+    """Read an API key from the environment.
+
+    Checks ``cfg.api_key_env`` first; falls back to ``default_env``.
+    Raises ``ValueError`` if the resolved env var is not set.
+    """
+    env_var = cfg.api_key_env or default_env
+    key = os.environ.get(env_var)
+    if not key:
+        raise ValueError(f"env var {env_var} is not set or empty")
+    return key
+
+
+def build_model(cfg: ModelConfig) -> Model:
+    """Translate a ``ModelConfig`` into a PydanticAI ``Model`` instance.
+
+    Supported providers: ``openai``, ``anthropic``, ``ollama``, ``openrouter``.
+    Raises ``ValueError`` for unknown providers.
+    """
+    if cfg.provider == "openai":
+        return OpenAIChatModel(
+            cfg.name,
+            provider=OpenAIProvider(api_key=_resolve_key(cfg, "OPENAI_API_KEY")),
+        )
+    if cfg.provider == "anthropic":
+        return AnthropicModel(
+            cfg.name,
+            provider=AnthropicProvider(api_key=_resolve_key(cfg, "ANTHROPIC_API_KEY")),
+        )
+    if cfg.provider == "ollama":
+        return OpenAIChatModel(
+            cfg.name,
+            provider=OllamaProvider(
+                base_url=cfg.base_url or "http://localhost:11434/v1"
+            ),
+        )
+    if cfg.provider == "openrouter":
+        return OpenAIChatModel(
+            cfg.name,
+            provider=OpenRouterProvider(
+                api_key=_resolve_key(cfg, "OPENROUTER_API_KEY")
+            ),
+        )
+    raise ValueError(f"Unknown provider: {cfg.provider!r}")

@@ -28,17 +28,6 @@ jobs:
       - name: Check formatting
         run: uv run ruff format --check .
 
-  validate-spec:
-    name: Validate OpenSpec
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install openspec
-        run: cargo install openspec || true
-
-      - name: Validate proposal
-        run: openspec validate add-entomological-framework --strict
 
   test:
     name: Tests

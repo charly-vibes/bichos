@@ -2,10 +2,17 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+from unittest.mock import patch
+
 import pytest
 from pydantic import ValidationError
+from pydantic_ai.models.anthropic import AnthropicModel
+from pydantic_ai.models.openai import OpenAIChatModel
+from typer.testing import CliRunner
 
-from bichos.config import HiveConfig, ModelConfig
+from bichos.cli import app
+from bichos.config import HiveConfig, ModelConfig, build_model
 
 # ---------------------------------------------------------------------------
 # ModelConfig field validation
@@ -144,3 +151,147 @@ def test_hive_config_model_json_round_trip() -> None:
     restored = HiveConfig.model_validate_json(json_str)
     assert restored.model.provider == "ollama"
     assert restored.model.name == "llama3.2"
+
+
+# ---------------------------------------------------------------------------
+# build_model() — provider dispatch and API key resolution
+# ---------------------------------------------------------------------------
+
+
+def test_build_model_openai(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+    cfg = ModelConfig(provider="openai", name="gpt-4o")
+    result = build_model(cfg)
+    assert isinstance(result, OpenAIChatModel)
+
+
+def test_build_model_anthropic(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test")
+    cfg = ModelConfig(provider="anthropic", name="claude-3-5-sonnet-latest")
+    result = build_model(cfg)
+    assert isinstance(result, AnthropicModel)
+
+
+def test_build_model_ollama() -> None:
+    # Ollama uses OllamaProvider — no API key required
+    cfg = ModelConfig(
+        provider="ollama",
+        name="llama3.2",
+        base_url="http://localhost:11434/v1",
+    )
+    result = build_model(cfg)
+    assert isinstance(result, OpenAIChatModel)
+
+
+def test_build_model_openrouter(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("OPENROUTER_API_KEY", "sk-or-test")
+    cfg = ModelConfig(provider="openrouter", name="anthropic/claude-3.5-sonnet")
+    result = build_model(cfg)
+    assert isinstance(result, OpenAIChatModel)
+
+
+def test_build_model_unknown_provider() -> None:
+    cfg = ModelConfig(provider="unknown_provider", name="some-model")
+    with pytest.raises(ValueError, match="Unknown provider"):
+        build_model(cfg)
+
+
+def test_build_model_missing_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    cfg = ModelConfig(provider="openai", name="gpt-4o")
+    with pytest.raises(ValueError, match="OPENAI_API_KEY"):
+        build_model(cfg)
+
+
+# ---------------------------------------------------------------------------
+# CLI --model and --base-url flags
+# ---------------------------------------------------------------------------
+
+_runner = CliRunner()
+
+
+def test_cli_model_flag(tmp_path: Path) -> None:
+    """--model <provider>:<name> overrides the model in HiveConfig."""
+    from bichos.hive.models import AnalysisReport, ReportMetadata, SummaryStats
+
+    report = AnalysisReport(
+        bugs=[],
+        summary_stats=SummaryStats(
+            total_functions_visited=0,
+            total_bugs_found=0,
+            unique_bugs=0,
+            avg_confidence=0.0,
+        ),
+        pheromone_heatmap={},
+        metadata=ReportMetadata(
+            repo_path=str(tmp_path),
+            agent_count=1,
+            timestamp="2026-01-01T00:00:00+00:00",
+            total_tokens=0,
+        ),
+    )
+
+    captured: list[HiveConfig] = []
+
+    async def _mock_run_hive(repo_path: Path, config: HiveConfig) -> AnalysisReport:
+        captured.append(config)
+        return report
+
+    with patch("bichos.cli.run_hive", new=_mock_run_hive):
+        result = _runner.invoke(
+            app, ["analyze", str(tmp_path), "--model", "anthropic:claude-3-5-sonnet"]
+        )
+
+    assert result.exit_code == 0, result.output
+    assert len(captured) == 1
+    assert captured[0].model.provider == "anthropic"
+    assert captured[0].model.name == "claude-3-5-sonnet"
+
+
+def test_cli_base_url_flag(tmp_path: Path) -> None:
+    """--base-url overrides the base_url in the model config."""
+    from bichos.hive.models import AnalysisReport, ReportMetadata, SummaryStats
+
+    report = AnalysisReport(
+        bugs=[],
+        summary_stats=SummaryStats(
+            total_functions_visited=0,
+            total_bugs_found=0,
+            unique_bugs=0,
+            avg_confidence=0.0,
+        ),
+        pheromone_heatmap={},
+        metadata=ReportMetadata(
+            repo_path=str(tmp_path),
+            agent_count=1,
+            timestamp="2026-01-01T00:00:00+00:00",
+            total_tokens=0,
+        ),
+    )
+
+    captured: list[HiveConfig] = []
+
+    async def _mock_run_hive(repo_path: Path, config: HiveConfig) -> AnalysisReport:
+        captured.append(config)
+        return report
+
+    with patch("bichos.cli.run_hive", new=_mock_run_hive):
+        result = _runner.invoke(
+            app,
+            [
+                "analyze",
+                str(tmp_path),
+                "--base-url",
+                "http://localhost:11434/v1",
+            ],
+        )
+
+    assert result.exit_code == 0, result.output
+    assert len(captured) == 1
+    assert captured[0].model.base_url == "http://localhost:11434/v1"
+
+
+def test_cli_model_invalid_format(tmp_path: Path) -> None:
+    """--model without a colon must cause a non-zero exit."""
+    result = _runner.invoke(app, ["analyze", str(tmp_path), "--model", "badformat"])
+    assert result.exit_code != 0

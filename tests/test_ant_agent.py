@@ -13,7 +13,7 @@ from pydantic_ai.models.test import TestModel
 
 from bichos.agents.ant.agent import forager, run_ant
 from bichos.agents.ant.models import AntDeps, BugReport, ExplorationResult
-from bichos.config import HiveConfig
+from bichos.config import HiveConfig, ModelConfig
 from bichos.graph.models import CodeGraph, NodeMeta
 from bichos.stigmergy.cache import PheromoneCache
 from bichos.stigmergy.models import BugPheromone, PheromoneType
@@ -65,7 +65,7 @@ def _make_simple_ant_deps(tmp_path: Path, semaphore_limit: int = 1) -> AntDeps:
     cache = PheromoneCache(cache_dir=tmp_path / "cache")
     # Use 'test' so that forager.run(model=deps.config.ant_model) resolves and
     # the override(model=TestModel(...)) can replace it during testing.
-    config = HiveConfig(ant_model="test")
+    config = HiveConfig(model=ModelConfig(provider="openai", name="test"))
     return AntDeps(
         pheromone_cache=cache,
         code_graph=graph,
@@ -263,7 +263,7 @@ async def test_forager_handles_dead_end(tmp_path: Path) -> None:
     nodes = {"solo.func": _node("func", file_path="solo.py", lineno=1, complexity=1)}
     graph = _make_graph_with_nodes(nodes, [])
     cache = PheromoneCache(cache_dir=tmp_path / "cache")
-    config = HiveConfig(ant_model="test")
+    config = HiveConfig(model=ModelConfig(provider="openai", name="test"))
     deps = AntDeps(
         pheromone_cache=cache,
         code_graph=graph,

@@ -435,3 +435,63 @@ def test_benchmark_invalid_dataset() -> None:
     """--dataset with an unknown value causes exit code 1."""
     result = runner.invoke(app, ["benchmark", "--dataset", "badname"])
     assert result.exit_code == 1
+
+
+# ---------------------------------------------------------------------------
+# analyze command — invalid --agents value (negative int fails HiveConfig)
+# ---------------------------------------------------------------------------
+
+
+def test_analyze_invalid_agents_value(tmp_path: Path) -> None:
+    """--agents=-1 triggers HiveConfig validation error, exit code 1."""
+    result = runner.invoke(app, ["analyze", str(tmp_path), "--agents", "-1"])
+    assert result.exit_code == 1
+    assert "Error: invalid --agents value" in result.output
+
+
+# ---------------------------------------------------------------------------
+# benchmark command — invalid mode name
+# ---------------------------------------------------------------------------
+
+
+def test_benchmark_invalid_mode() -> None:
+    """--modes invalid_mode causes exit code 1 with error message."""
+    result = runner.invoke(app, ["benchmark", "--modes", "invalid_mode"])
+    assert result.exit_code == 1
+    assert "Error: invalid mode(s)" in result.output
+
+
+# ---------------------------------------------------------------------------
+# benchmark command — no API key warning
+# ---------------------------------------------------------------------------
+
+
+def test_benchmark_no_api_key_warning() -> None:
+    """When no API key is set and --skip-slow is NOT passed, a warning is printed."""
+    result = runner.invoke(
+        app,
+        ["benchmark"],
+        env={"ANTHROPIC_API_KEY": "", "OPENAI_API_KEY": ""},
+    )
+    assert "No ANTHROPIC_API_KEY" in result.output
+
+
+# ---------------------------------------------------------------------------
+# benchmark command — run_hive exception falls back to mock report
+# ---------------------------------------------------------------------------
+
+
+def test_benchmark_run_hive_exception() -> None:
+    """When run_hive raises RuntimeError, benchmark catches it and uses mock report."""
+    with (
+        patch(
+            "bichos.cli.run_hive",
+            new=MagicMock(side_effect=RuntimeError("boom")),
+        ),
+    ):
+        result = runner.invoke(
+            app,
+            ["benchmark", "--seeds", "1", "--modes", "aco"],
+            env={"ANTHROPIC_API_KEY": "sk-fake-key", "OPENAI_API_KEY": ""},
+        )
+    assert result.exit_code == 0, result.output

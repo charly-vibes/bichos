@@ -298,10 +298,19 @@ def _compute_metrics(
     precision = true_positives / reported_bugs if reported_bugs > 0 else 0.0
     recall = true_positives / ground_truth_count if ground_truth_count > 0 else 0.0
 
+    f1 = (
+        2 * precision * recall / (precision + recall)
+        if (precision + recall) > 0
+        else 0.0
+    )
+    tokens_used = float(report.metadata.total_tokens)
+
     return {
         "bugs_found": float(reported_bugs),
         "precision": precision,
         "recall": recall,
+        "f1": f1,
+        "tokens_used": tokens_used,
     }
 
 
@@ -325,8 +334,19 @@ def benchmark(
     output_file: Path | None = typer.Option(  # noqa: B008
         None, "--output-file", help="Write JSON results to file"
     ),
+    model: str | None = typer.Option(  # noqa: B008
+        None, "--model", help="Model in <provider>:<name> format, e.g. openai:gpt-4o."
+    ),
 ) -> None:
     """Benchmark the swarm across modes and fixture datasets."""
+    # Validate model flag format
+    if model is not None and ":" not in model:
+        typer.echo(
+            f"Error: --model must be in <provider>:<name> format, got {model!r}",
+            err=True,
+        )
+        raise typer.Exit(code=1)
+
     # Validate dataset
     if dataset not in _VALID_DATASETS:
         typer.echo(
@@ -361,24 +381,38 @@ def benchmark(
         "medium_bugs": bug_counts.get("medium_bugs", 10),
     }
 
-    # Determine whether to use real LLM calls
+    # Determine whether to use real LLM calls.
+    # A model flag pointing at a local provider (ollama) needs no API key.
     has_api_key = bool(
-        os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("OPENAI_API_KEY")
+        os.environ.get("ANTHROPIC_API_KEY")
+        or os.environ.get("OPENAI_API_KEY")
+        or os.environ.get("OPENROUTER_API_KEY")
     )
-    use_mock = skip_slow or not has_api_key
+    has_local_model = model is not None and model.startswith("ollama:")
+    use_mock = skip_slow or (not has_api_key and not has_local_model)
 
-    if not has_api_key and not skip_slow:
+    if not has_api_key and not has_local_model and not skip_slow:
         console.print(
-            "[yellow]Warning:[/yellow] No ANTHROPIC_API_KEY or OPENAI_API_KEY found. "
+            "[yellow]Warning:[/yellow] No ANTHROPIC_API_KEY, OPENAI_API_KEY, or "
+            "OPENROUTER_API_KEY found. "
             "Using mock results. Pass --skip-slow to suppress this warning."
         )
 
     # Results storage: mode → list of per-seed metrics
     mode_results: dict[str, list[dict[str, float]]] = {m: [] for m in modes}
 
+    # Parse optional --model flag into model config dict
+    model_data: dict[str, str] = {}
+    if model is not None:
+        provider, name = model.split(":", 1)
+        model_data = {"provider": provider, "name": name}
+
     for mode in modes:
         aco_config = _MODE_ACO_CONFIGS[mode]
-        config = HiveConfig.model_validate({"aco": aco_config.model_dump()})
+        config_data: dict[str, object] = {"aco": aco_config.model_dump()}
+        if model_data:
+            config_data["model"] = model_data
+        config = HiveConfig.model_validate(config_data)
 
         for seed_idx in range(seeds):
             for fixture_path in fixture_paths:
@@ -405,6 +439,8 @@ def benchmark(
         bugs_list = [m["bugs_found"] for m in seed_metrics]
         prec_list = [m["precision"] for m in seed_metrics]
         rec_list = [m["recall"] for m in seed_metrics]
+        f1_list = [m["f1"] for m in seed_metrics]
+        tokens_list = [m["tokens_used"] for m in seed_metrics]
 
         aggregated[mode] = {
             "seeds": seed_metrics,
@@ -412,6 +448,12 @@ def benchmark(
             "std_bugs": statistics.stdev(bugs_list) if len(bugs_list) > 1 else 0.0,
             "mean_precision": statistics.mean(prec_list) if prec_list else 0.0,
             "mean_recall": statistics.mean(rec_list) if rec_list else 0.0,
+            "mean_f1": statistics.mean(f1_list) if f1_list else 0.0,
+            "std_f1": statistics.stdev(f1_list) if len(f1_list) > 1 else 0.0,
+            "mean_tokens": statistics.mean(tokens_list) if tokens_list else 0.0,
+            "std_tokens": (
+                statistics.stdev(tokens_list) if len(tokens_list) > 1 else 0.0
+            ),
         }
 
     # Build output structure
@@ -433,6 +475,8 @@ def benchmark(
     table.add_column("Std Bugs", justify="right")
     table.add_column("Mean Precision", justify="right", style="green")
     table.add_column("Mean Recall", justify="right", style="yellow")
+    table.add_column("Mean F1", justify="right", style="bold green")
+    table.add_column("Mean Tokens", justify="right")
 
     for mode in modes:
         agg = aggregated[mode]
@@ -442,6 +486,8 @@ def benchmark(
             f"{agg['std_bugs']:.2f}",
             f"{agg['mean_precision']:.3f}",
             f"{agg['mean_recall']:.3f}",
+            f"{agg['mean_f1']:.3f}",
+            f"{agg['mean_tokens']:.1f}",
         )
 
     console.print(table)

@@ -337,6 +337,11 @@ def benchmark(
     model: str | None = typer.Option(  # noqa: B008
         None, "--model", help="Model in <provider>:<name> format, e.g. openai:gpt-4o."
     ),
+    base_url: str | None = typer.Option(  # noqa: B008
+        None,
+        "--base-url",
+        help="Override model base_url, e.g. http://0.0.0.0:11435/v1.",
+    ),
 ) -> None:
     """Benchmark the swarm across modes and fixture datasets."""
     # Validate model flag format
@@ -401,11 +406,13 @@ def benchmark(
     # Results storage: mode → list of per-seed metrics
     mode_results: dict[str, list[dict[str, float]]] = {m: [] for m in modes}
 
-    # Parse optional --model flag into model config dict
+    # Parse optional --model and --base-url flags into model config dict
     model_data: dict[str, str] = {}
     if model is not None:
         provider, name = model.split(":", 1)
         model_data = {"provider": provider, "name": name}
+    if base_url is not None:
+        model_data["base_url"] = base_url
 
     for mode in modes:
         aco_config = _MODE_ACO_CONFIGS[mode]

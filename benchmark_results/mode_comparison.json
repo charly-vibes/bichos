@@ -1,0 +1,251 @@
+{
+  "dataset": "medium",
+  "modes": {
+    "aco": {
+      "seeds": [
+        {
+          "bugs_found": 0.0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tokens_used": 0.0
+        },
+        {
+          "bugs_found": 1.0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tokens_used": 0.0
+        },
+        {
+          "bugs_found": 2.0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tokens_used": 1500.0
+        },
+        {
+          "bugs_found": 0.0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tokens_used": 0.0
+        },
+        {
+          "bugs_found": 2.0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tokens_used": 0.0
+        },
+        {
+          "bugs_found": 0.0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tokens_used": 0.0
+        },
+        {
+          "bugs_found": 0.0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tokens_used": 0.0
+        },
+        {
+          "bugs_found": 0.0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tokens_used": 0.0
+        },
+        {
+          "bugs_found": 0.0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tokens_used": 0.0
+        },
+        {
+          "bugs_found": 0.0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tokens_used": 0.0
+        }
+      ],
+      "mean_bugs": 0.5,
+      "std_bugs": 0.8498365855987975,
+      "mean_precision": 0.0,
+      "mean_recall": 0.0,
+      "mean_f1": 0.0,
+      "std_f1": 0.0,
+      "mean_tokens": 150.0,
+      "std_tokens": 474.3416490252569
+    },
+    "complexity": {
+      "seeds": [
+        {
+          "bugs_found": 0.0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tokens_used": 0.0
+        },
+        {
+          "bugs_found": 0.0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tokens_used": 0.0
+        },
+        {
+          "bugs_found": 0.0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tokens_used": 0.0
+        },
+        {
+          "bugs_found": 1.0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tokens_used": 0.0
+        },
+        {
+          "bugs_found": 0.0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tokens_used": 0.0
+        },
+        {
+          "bugs_found": 0.0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tokens_used": 0.0
+        },
+        {
+          "bugs_found": 0.0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tokens_used": 0.0
+        },
+        {
+          "bugs_found": 0.0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tokens_used": 0.0
+        },
+        {
+          "bugs_found": 0.0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tokens_used": 0.0
+        },
+        {
+          "bugs_found": 0.0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tokens_used": 0.0
+        }
+      ],
+      "mean_bugs": 0.1,
+      "std_bugs": 0.31622776601683794,
+      "mean_precision": 0.0,
+      "mean_recall": 0.0,
+      "mean_f1": 0.0,
+      "std_f1": 0.0,
+      "mean_tokens": 0.0,
+      "std_tokens": 0.0
+    },
+    "random": {
+      "seeds": [
+        {
+          "bugs_found": 2.0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tokens_used": 0.0
+        },
+        {
+          "bugs_found": 0.0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tokens_used": 0.0
+        },
+        {
+          "bugs_found": 0.0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tokens_used": 0.0
+        },
+        {
+          "bugs_found": 0.0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tokens_used": 0.0
+        },
+        {
+          "bugs_found": 0.0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tokens_used": 0.0
+        },
+        {
+          "bugs_found": 0.0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tokens_used": 0.0
+        },
+        {
+          "bugs_found": 0.0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tokens_used": 0.0
+        },
+        {
+          "bugs_found": 0.0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tokens_used": 0.0
+        },
+        {
+          "bugs_found": 0.0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tokens_used": 0.0
+        },
+        {
+          "bugs_found": 0.0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tokens_used": 0.0
+        }
+      ],
+      "mean_bugs": 0.2,
+      "std_bugs": 0.6324555320336759,
+      "mean_precision": 0.0,
+      "mean_recall": 0.0,
+      "mean_f1": 0.0,
+      "std_f1": 0.0,
+      "mean_tokens": 0.0,
+      "std_tokens": 0.0
+    }
+  }
+}

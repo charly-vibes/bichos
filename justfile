@@ -45,9 +45,14 @@ validate:
 spec:
     openspec show add-entomological-framework
 
+# Set up dev environment (deps + git hooks)
+setup:
+    uv sync --all-extras
+    prek install -t pre-commit -t pre-push
+
 # Install git hooks via prek
 hooks:
-    prek install
+    prek install -t pre-commit -t pre-push
 
 # Run git hooks against all files
 hooks-run:

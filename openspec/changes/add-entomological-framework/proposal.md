@@ -72,7 +72,7 @@ None - this is initial implementation.
 4. **Observable**: Loguru traces show agent decisions and pheromone updates
 5. **Performant**: 10-agent swarm analyzes 10k LOC codebase in < 10 minutes
 6. **Self-Analyzing**: Framework can dogfood itself (analyze bichos codebase)
-7. **Cost-Effective**: Analysis cost < $20 per 10K LOC (validated via benchmarking)
+7. **Cost-Effective**: Analysis cost < $6 per 10K LOC (validated via benchmarking)
 8. **Competitive**: Find ≥3 issues not found by pylint per repository
 9. **Accurate**: Bug detection F1 score > 0.65 on benchmark dataset
 10. **Concurrent-Safe**: Multi-agent swarms execute without race conditions
@@ -101,8 +101,8 @@ This proposal includes comprehensive supporting materials:
    - Scaling strategy for large codebases (partitioning, multi-language support)
 
 3. **[cost-analysis.md](./cost-analysis.md)** - Token usage and ROI analysis:
-   - Per-agent cost estimates: $0.621 per analysis cycle
-   - 10K LOC analysis: $12-18 (vs $30-50 for single GPT-4 agent)
+   - Per-agent cost estimates: ~$0.18 per analysis cycle
+   - 10K LOC analysis: $3.60-5.40 (vs $10-20 for single GPT-4o agent)
    - 89% token reduction vs message-passing frameworks
    - Benchmark dataset: 10 open-source repos + synthetic bugs
    - Performance targets and validation metrics

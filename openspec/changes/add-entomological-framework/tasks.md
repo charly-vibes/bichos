@@ -5,7 +5,7 @@
 ## 1. Project Foundation
 
 - [ ] 1.1 Create directory structure (`src/bichos/`, `tests/`, `examples/`, `docs/`)
-- [ ] 1.2 Create `pyproject.toml` with dependencies (PydanticAI, diskcache, Loguru, NetworkX, radon, Click)
+- [ ] 1.2 Create `pyproject.toml` with dependencies (PydanticAI, diskcache, Loguru, NetworkX, radon, Typer)
 - [ ] 1.3 Set up package `__init__.py` files with version and exports
 - [ ] 1.4 Configure Loguru with structured logging and file rotation
 - [ ] 1.5 Create `.gitignore` for Python artifacts and pheromone cache
@@ -83,8 +83,8 @@
 ## 5. Bee Scout Agent
 
 - [ ] 5.1 Create `bichos/agents/bee/models.py` with bee-specific schemas
-  - [ ] `BeeDeps` class with cache, HTTP client
-  - [ ] `WaggleDance` model with endpoint, latency, throughput, error_rate
+  - [ ] `BeeDeps` class with cache, code graph
+  - [ ] `WaggleDance` model with function_name, estimated_complexity, anti_pattern_type, complexity_score
   - [ ] `PerformanceReport` aggregate model
 - [ ] 5.2 Create `bichos/agents/bee/agent.py` with PydanticAI agent
   - [ ] Define scout agent with system prompt
@@ -200,23 +200,23 @@
 
 ## 10. CLI Interface
 
-- [ ] 10.1 Create `src/bichos/cli.py` (or `src/bichos/cli/main.py`) with Click
-  - [ ] Top-level `@click.group()` named `main` — this is the entry point
+- [ ] 10.1 Create `src/bichos/cli.py` (or `src/bichos/cli/main.py`) with Typer
+  - [ ] Top-level `typer.Typer()` app named `app` — this is the entry point
   - [ ] `bichos analyze <path> [--config FILE] [--agents N] [--output FILE]`
   - [ ] `bichos stats [--path DIR]` — pheromone heatmap
   - [ ] `bichos config show` — print resolved config
   - [ ] `bichos clear-cache` — wipe pheromone store
-  - [ ] `bichos --version` via `@click.version_option`
+  - [ ] `bichos --version` via Typer version callback
   - [ ] All subcommands expose `--help` with example invocations
 - [ ] 10.2 Wire entry point in `pyproject.toml`
-  - [ ] `[project.scripts] bichos = "bichos.cli:main"` (adjust module path if needed)
+  - [ ] `[project.scripts] bichos = "bichos.cli:app"` (adjust module path if needed)
   - [ ] Verify `pip install -e .` makes `bichos` available on `PATH`
 - [ ] 10.3 Exit code discipline
   - [ ] Exit 0 on clean run, exit 1 when issues are found, exit 2 on error
   - [ ] Errors go to stderr; structured output goes to stdout
 - [ ] 10.4 Add progress bars and status updates during analysis
 - [ ] 10.5 Create rich formatting for analysis reports (markdown + terminal colour)
-- [ ] 10.6 Write tests for CLI commands using `click.testing.CliRunner`
+- [ ] 10.6 Write tests for CLI commands using `typer.testing.CliRunner`
   - [ ] Test `--version`, `--help`, `analyze`, `stats`, `clear-cache`
   - [ ] Test exit codes for success, found-issues, and error paths
 
@@ -281,8 +281,8 @@
 
 - [ ] 13.1 Complete `pyproject.toml` for PyPI publication
   - [ ] Package metadata: `name = "bichos"`, version, description, license, classifiers
-  - [ ] `[project.scripts] bichos = "bichos.cli:main"` entry point
-  - [ ] Runtime dependencies with version constraints (pydantic-ai, diskcache, loguru, networkx, radon, click)
+  - [ ] `[project.scripts] bichos = "bichos.cli:app"` entry point
+  - [ ] Runtime dependencies with version constraints (pydantic-ai, diskcache, loguru, networkx, radon, typer)
   - [ ] Optional dependency groups: `[project.optional-dependencies] llm = [openai, anthropic]`
   - [ ] Dev dependencies under `[dependency-groups] dev = [pytest, ruff, mypy, ...]`
   - [ ] `[build-system]` using hatchling or flit (compatible with uv)

@@ -36,7 +36,7 @@ The system SHALL detect potential bugs through code analysis and report them via
 - **AND** alarm is logged to Loguru with caste="ant"
 
 #### Scenario: False positive validation
-- **WHEN** bug is detected with confidence < 70%
+- **WHEN** bug is detected with confidence < confidence_threshold (default 0.7)
 - **THEN** severity is reduced by 50%
 - **AND** report is marked as "potential_issue" rather than "confirmed_bug"
 
@@ -44,9 +44,9 @@ The system SHALL detect potential bugs through code analysis and report them via
 The system SHALL traverse the code graph using BFS/DFS strategies guided by pheromones.
 
 #### Scenario: Start traversal from entry point
-- **WHEN** analysis begins on module "main.py"
-- **THEN** ant spawns at main() function
-- **AND** begins exploration of call graph
+- **WHEN** analysis begins on a codebase
+- **THEN** each ant is assigned a function from the code graph as its starting point
+- **AND** begins exploration of the call graph from that node
 
 #### Scenario: Depth-limited search
 - **WHEN** ant has explored 50 functions (max depth reached)
@@ -66,17 +66,17 @@ The system SHALL provide a tool for ACO-based function selection.
 - **THEN** one neighbor function from code graph is returned
 - **AND** selection probability is based on ACO formula
 
-#### Scenario: Tool returns RETURN_TO_NEST when no neighbors
+#### Scenario: Tool handles leaf function with no neighbors
 - **WHEN** choose_next_function() is called on leaf function (no callees)
-- **THEN** special value "RETURN_TO_NEST" is returned
-- **AND** signals end of exploration path
+- **THEN** the current function is returned unchanged
+- **AND** signals end of exploration path (no further traversal possible)
 
 #### Scenario: Tool accesses pheromone cache via Deps
 - **WHEN** tool retrieves pheromone levels for neighbors
 - **THEN** it uses ctx.deps.pheromone_cache.get_pheromone()
 - **AND** defaults to 0.1 if no pheromone exists
 
-### Requirement: Agent Tool: analyze_code_path
+### Requirement: Agent Tool: analyze_code
 The system SHALL provide a tool for deep inspection of code execution paths.
 
 #### Scenario: Analyze path for edge cases
@@ -94,7 +94,7 @@ The system SHALL provide a tool for depositing bug pheromones.
 
 #### Scenario: Deposit bug pheromone with severity
 - **WHEN** report_bug("auth.py:42", "Missing None check", severity=7) is called
-- **THEN** pheromone with intensity 35.0 is deposited
+- **THEN** pheromone is deposited with intensity proportional to severity and confidence
 - **AND** structured log entry is created
 
 #### Scenario: Attract more ants to buggy area
@@ -138,7 +138,7 @@ The system SHALL spawn multiple ant agents that coordinate via pheromones withou
 The system SHALL reduce false positive bug reports through confidence thresholds and pheromone gating.
 
 #### Scenario: Confidence threshold gates pheromone deposition
-- **WHEN** bug is detected with confidence < 50%
+- **WHEN** bug is detected with confidence < confidence_threshold (default 0.7)
 - **THEN** no pheromone is deposited
 - **AND** finding is logged as "low_confidence" for review but does not attract other agents
 
@@ -156,7 +156,7 @@ The system SHALL reduce false positive bug reports through confidence thresholds
 #### Scenario: Configurable confidence threshold
 - **WHEN** user sets `ant.confidence_threshold: 0.8` in config
 - **THEN** only findings with >= 80% confidence deposit pheromones
-- **AND** default is 0.5 (50%)
+- **AND** default is 0.7 (70%)
 
 ### Requirement: Performance Optimization
 The system SHALL minimize LLM token usage through efficient context management.
@@ -170,3 +170,32 @@ The system SHALL minimize LLM token usage through efficient context management.
 - **WHEN** cyclomatic complexity is calculated for a function
 - **THEN** result is cached in code graph metadata
 - **AND** not recalculated on subsequent ant visits
+
+### Requirement: LLM Context Management
+The system SHALL manage source code context sent to LLM agents to fit within token budgets while providing sufficient information for analysis.
+
+#### Scenario: Function source code retrieval
+- **WHEN** the analyze_code tool is called for function "process_order"
+- **THEN** the full source code of that function is extracted from the AST
+- **AND** sent to the LLM as context for analysis
+
+#### Scenario: Large function truncation
+- **WHEN** a function exceeds 200 lines of source code
+- **THEN** the source is truncated to the first 200 lines with a "[truncated]" marker
+- **AND** the LLM is informed of total function size
+- **AND** a warning is logged
+
+#### Scenario: Context includes surrounding metadata
+- **WHEN** the LLM analyzes a function
+- **THEN** context includes: function signature, file path, line number, complexity score, and list of callers/callees from the code graph
+- **AND** does NOT include full source of neighboring functions (to save tokens)
+
+#### Scenario: Token budget enforcement
+- **WHEN** an ant agent's cumulative token usage approaches max_tokens_per_ant
+- **THEN** the agent stops exploring and returns current findings
+- **AND** partial results are included in the final report
+
+#### Scenario: Deterministic context for reproducibility
+- **WHEN** deterministic mode is enabled (fixed seed)
+- **THEN** the same function always produces the same context string
+- **AND** enables reproducible LLM interactions (modulo model non-determinism)

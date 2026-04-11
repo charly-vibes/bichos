@@ -4,12 +4,14 @@
 
 ### Per-Agent Token Consumption
 
+> Pricing estimated as of early 2026; actual costs vary by provider plan and volume.
+
 | Agent Caste | Model | Tokens/Iteration | Cost/1K Tokens | Cost/Iteration |
 |-------------|-------|------------------|----------------|----------------|
-| Ant (Forager) | GPT-4 | 1,500 | $0.03 | $0.045 |
-| Bee (Scout) | GPT-3.5-Turbo | 800 | $0.002 | $0.0016 |
-| Termite (Builder) | Claude Sonnet | 2,000 | $0.015 | $0.030 |
-| Wasp (Guard) | Gemini 1.5 Pro | 1,200 | $0.0035 | $0.0042 |
+| Ant (Forager) | GPT-4o | 1,500 | $0.005 | $0.0075 |
+| Bee (Scout) | GPT-4o-mini | 800 | $0.0003 | $0.00024 |
+| Termite (Builder) | Claude 3.5 Sonnet | 2,000 | $0.009 | $0.018 |
+| Wasp (Guard) | Gemini 1.5 Pro | 1,200 | $0.00375 | $0.0045 |
 
 ### Swarm Cost Analysis
 
@@ -18,22 +20,22 @@
 
 **Cost per Analysis Cycle:**
 ```
-10 ants × $0.045    = $0.45
-5 bees × $0.0016    = $0.008
-5 termites × $0.030 = $0.15
-3 wasps × $0.0042   = $0.0126
-─────────────────────────────
-Total per cycle     = $0.621
+10 ants × $0.0075    = $0.075
+5 bees × $0.00024    = $0.0012
+5 termites × $0.018  = $0.09
+3 wasps × $0.0045    = $0.0135
+──────────────────────────────
+Total per cycle      = ~$0.18
 ```
 
 **Medium Codebase Analysis (10K LOC):**
 - Estimated cycles: 20-30 (agents explore ~500 LOC per cycle)
-- Total cost: **$12.42 - $18.63**
+- Total cost: **$3.60 - $5.40**
 - Duration: ~10 minutes (target)
 
 **Large Codebase Analysis (100K LOC):**
 - Estimated cycles: 200-300
-- Total cost: **$124 - $186**
+- Total cost: **$36 - $54**
 - Duration: ~100 minutes (extrapolated)
 - **Note**: Requires optimization for production use
 
@@ -68,17 +70,17 @@ Agent B → Pheromone Grid: read("bug:auth*")
 
 | Approach | 10K LOC | 100K LOC | Notes |
 |----------|---------|----------|-------|
-| **Bichos (this)** | $12-18 | $124-186 | Multi-pattern analysis |
-| **GPT-4 Code Review** | $30-50 | $300-500 | Single-agent, sequential |
-| **Aider** | $20-40 | $200-400 | Single-agent with context |
-| **CrewAI Multi-Agent** | $50-80 | $500-800 | Message-passing overhead |
+| **Bichos (this)** | $3.60-5.40 | $36-54 | Multi-pattern analysis |
+| **GPT-4o Code Review** | $10-20 | $100-200 | Single-agent, sequential |
+| **Aider** | $8-15 | $80-150 | Single-agent with context |
+| **CrewAI Multi-Agent** | $15-25 | $150-250 | Message-passing overhead |
 | **Manual Code Review** | $500+ | $5,000+ | 8 hrs @ $60/hr, human expert |
 | **Static Analyzers** | $0 | $0 | Free but limited (baseline) |
 
 **Value Proposition:**
-- **4x cheaper** than single-agent LLM reviews
-- **10x cheaper** than other multi-agent frameworks
-- **40x cheaper** than human review
+- **3x cheaper** than single-agent LLM reviews
+- **4x cheaper** than other multi-agent frameworks
+- **100x cheaper** than human review
 - **More comprehensive** than free static analyzers
 
 ## Benchmark Strategy
@@ -114,7 +116,7 @@ Agent B → Pheromone Grid: read("bug:auth*")
 - **Bottleneck Detection Rate**: % of known bottlenecks identified
   - Target: > 80%
 - **False Positive Bottlenecks**: < 30%
-- **Latency Measurement Accuracy**: ±10% of actual measurements
+- **Anti-Pattern Classification Accuracy**: ±10% agreement with manual review
 
 **Architecture Analysis (Termite Pattern):**
 - **Circular Dependency Detection**: 100% (deterministic graph analysis)
@@ -201,14 +203,14 @@ Agent B → Pheromone Grid: read("bug:auth*")
 
 **Minimum Viable Thresholds:**
 - ✅ Bug detection F1 > 0.65
-- ✅ Cost < $20 per 10K LOC
+- ✅ Cost < $6 per 10K LOC
 - ✅ Time < 15 min per 10K LOC
 - ✅ Find ≥3 issues not found by pylint (per repo)
 - ✅ Token reduction ≥ 80% vs message-passing
 
 **Stretch Goals:**
 - 🎯 Bug detection F1 > 0.75
-- 🎯 Cost < $15 per 10K LOC
+- 🎯 Cost < $4 per 10K LOC
 - 🎯 Time < 10 min per 10K LOC
 - 🎯 Find ≥10 issues not found by pylint (per repo)
 - 🎯 Token reduction ≥ 90% vs message-passing
@@ -218,8 +220,8 @@ Agent B → Pheromone Grid: read("bug:auth*")
 ### If Costs Exceed Budget:
 
 1. **Model Downgrading**
-   - Ants: GPT-4 → GPT-3.5-Turbo (75% cost reduction, ~20% quality loss)
-   - Termites: Claude Sonnet → GPT-3.5 (80% cost reduction)
+   - Ants: GPT-4o → GPT-4o-mini (94% cost reduction, ~20% quality loss)
+   - Termites: Claude 3.5 Sonnet → GPT-4o-mini (97% cost reduction)
 
 2. **Agent Count Reduction**
    - Default 23 → Minimal 10 (5 ants, 2 bees, 2 termites, 1 wasp)
@@ -247,9 +249,9 @@ Agent B → Pheromone Grid: read("bug:auth*")
 - @ $60/hour = **$4,800/month**
 
 **Bichos Monthly Cost:**
-- 40 PRs × ~10K LOC avg × $15/analysis = **$600/month**
+- 40 PRs × ~10K LOC avg × ~$5/analysis = **$200/month**
 
-**Monthly Savings: $4,200 (88% reduction)**
+**Monthly Savings: $4,600 (96% reduction)**
 
 **Payback Period for Implementation:**
 - Development cost estimate: $50K-100K (12 weeks × $80-120K annual salary)

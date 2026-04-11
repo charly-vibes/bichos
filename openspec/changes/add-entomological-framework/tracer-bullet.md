@@ -53,7 +53,7 @@ bichos/
 ├── src/
 │   └── bichos/
 │       ├── __init__.py
-│       ├── cli.py                  # Click CLI entry point
+│       ├── cli.py                  # Typer CLI entry point
 │       ├── config.py               # HiveConfig Pydantic model
 │       ├── stigmergy/
 │       │   ├── __init__.py
@@ -89,8 +89,8 @@ bichos/
 
 Tasks:
 - [ ] 0.1 Create directory structure
-- [ ] 0.2 Write `pyproject.toml` with deps: pydantic-ai, diskcache, loguru, networkx, radon, click
-- [ ] 0.3 Write minimal `cli.py` with Click: `bichos analyze <path>` and `bichos --version`
+- [ ] 0.2 Write `pyproject.toml` with deps: pydantic-ai, diskcache, loguru, networkx, radon, typer
+- [ ] 0.3 Write minimal `cli.py` with Typer: `bichos analyze <path>` and `bichos --version`
 - [ ] 0.4 Write `config.py` with HiveConfig Pydantic model (agent_counts, aco params, model names)
 - [ ] 0.5 Create test fixtures: `simple_bugs/` with 5 Python files containing 3 planted bugs
 - [ ] 0.6 Configure Loguru with structured JSON logging

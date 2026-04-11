@@ -154,7 +154,7 @@ from bichos import Hive, HiveConfig
 config = HiveConfig(
     agent_counts={"ants": 20, "bees": 10, "termites": 5, "wasps": 3},
     pheromone_decay_rate=0.1,
-    models={"ant": "openai:gpt-4", "bee": "openai:gpt-3.5-turbo"}
+    models={"ant": "openai:gpt-4o", "bee": "openai:gpt-4o-mini"}
 )
 
 # Run analysis
@@ -171,7 +171,7 @@ print(f"Refactorings: {len(report.architecture_suggestions)}")
 
 - **Agent Startup:** < 1 second
 - **Pheromone Operations:** < 10ms read, < 50ms write
-- **Medium Codebase (10k LOC):** < 10 minutes with 23-agent swarm
+- **Medium Codebase (10k LOC):** < 10 minutes
 - **Token Efficiency:** 80% reduction vs. message-passing coordination
 
 ## 🤝 Contributing

@@ -71,19 +71,21 @@ The system SHALL use different TTL values for different pheromone types based on
 
 #### Scenario: Bug pheromone long memory
 - **WHEN** a bug pheromone is deposited
-- **THEN** it has a default TTL of 7 days (604800 seconds)
+- **THEN** it has a default TTL of 1 day (86400 seconds), configurable via `StigmergyConfig.bug_ttl`
 
 #### Scenario: Performance pheromone short memory
 - **WHEN** a performance pheromone is deposited
-- **THEN** it has a default TTL of 1 hour (3600 seconds)
+- **THEN** it has a default TTL of 1 hour (3600 seconds), configurable via `StigmergyConfig.default_ttl`
 
 #### Scenario: Architecture pheromone medium memory
 - **WHEN** a curvature pheromone is deposited
-- **THEN** it has a default TTL of 30 days (2592000 seconds)
+- **THEN** it has a default TTL configured via `StigmergyConfig.default_ttl` (default: 1 hour; will be extended when termite agents are implemented)
+- **NOTE** The 30-day target TTL requires a per-type TTL field to be added to StigmergyConfig
 
 #### Scenario: Security alert urgent memory
 - **WHEN** an alert pheromone is deposited
-- **THEN** it has a default TTL of 24 hours (86400 seconds)
+- **THEN** it has a default TTL configured via `StigmergyConfig.default_ttl` (default: 1 hour; will be tuned when wasp agents are implemented)
+- **NOTE** The 24-hour target TTL requires a per-type TTL field to be added to StigmergyConfig
 
 ### Requirement: Cache Isolation and Cleanup
 The system SHALL isolate pheromone caches per analysis session and provide cleanup utilities.

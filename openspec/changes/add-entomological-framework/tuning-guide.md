@@ -20,7 +20,7 @@ What do you want to optimize?
 ├─ Better Architecture Suggestions
 │  └─ Increase termite count (5 → 10)
 │  └─ Decrease curvature threshold (10 → 7)
-│  └─ Increase termite model quality (GPT-3.5 → GPT-4)
+│  └─ Increase termite model quality (GPT-4o-mini → GPT-4o)
 │
 ├─ More Security Coverage
 │  └─ Increase wasp count (3 → 7)
@@ -29,7 +29,7 @@ What do you want to optimize?
 │
 └─ Lower Cost
    └─ Reduce agent counts (23 → 10)
-   └─ Use cheaper models (GPT-4 → GPT-3.5)
+   └─ Use cheaper models (GPT-4o → GPT-4o-mini)
    └─ Partition large repos (analyze incrementally)
 ```
 
@@ -276,7 +276,7 @@ ant:
 
 ```yaml
 bee:
-  model: "openai:gpt-3.5-turbo"  # Faster, cheaper for probing
+  model: "openai:gpt-4o-mini"  # Faster, cheaper for analysis
   probe_iterations: 10            # How many times to measure
   recruitment_strategy: "proportional"  # or "threshold"
   latency_threshold: 1000         # Only flag if > 1000ms
@@ -297,7 +297,7 @@ termite:
 
 ```yaml
 wasp:
-  model: "google:gemini-1.5-pro"  # Large context for pattern matching
+  model: "openai:gpt-4o"  # Large context for pattern matching
   quorum_sensing: true             # Use multiple agents
   quorum_size: 5
   threat_threshold: 7              # Only alert if >= 7/10
@@ -394,9 +394,9 @@ pheromone_decay:
 # LLM models
 models:
   ant: "openai:gpt-4o"
-  bee: "openai:gpt-3.5-turbo"
+  bee: "openai:gpt-4o-mini"
   termite: "anthropic:claude-3-5-sonnet"
-  wasp: "google:gemini-1.5-pro"
+  wasp: "openai:gpt-4o"
 
 # Detection thresholds
 thresholds:

@@ -43,8 +43,7 @@ The `pyproject.toml` SHALL declare `bichos` as a `[project.scripts]` console scr
 
 #### Scenario: Entry point is callable after install
 - **WHEN** the package is installed via any supported package manager
-- **THEN** executing `bichos` invokes the main Click group defined in `bichos.cli`
-- **AND** the invocation is equivalent to `python -m bichos.cli`
+- **THEN** executing `bichos` invokes the Typer app defined in `bichos.cli`
 
 ### Requirement: CLI Version Flag
 The CLI SHALL report the installed package version via `--version`.
@@ -77,6 +76,7 @@ The CLI SHALL return machine-readable exit codes so scripts and CI pipelines can
 #### Scenario: Analysis finds issues
 - **WHEN** bugs or violations are detected
 - **THEN** exit code is 1 (issues found; not a tool error)
+- **NOTE** Current implementation uses exit code 1 for both issues-found and runtime errors. Exit code 2 for tool errors is planned but not yet implemented.
 
 #### Scenario: Runtime error
 - **WHEN** an unexpected error occurs (invalid path, corrupted cache, network failure)
@@ -93,41 +93,39 @@ The CLI SHALL expose subcommands covering the primary workflows. Command surface
 
 #### Scenario: Analyze subcommand — default output
 - **WHEN** user runs `bichos analyze <path> [--config <file>] [--agents <n>]`
-- **THEN** a hive analysis is launched on the target path with a progress indicator
-- **AND** on completion the report is written to `bichos-report.md` in the working directory
-- **AND** a summary line is printed to stdout
+- **THEN** a hive analysis is launched on the target path
+- **AND** on completion a summary table is printed to stdout
 
 #### Scenario: Analyze subcommand — custom output format
-- **WHEN** user runs `bichos analyze <path> --format json`
+- **WHEN** user runs `bichos analyze <path> --output json`
 - **THEN** the analysis report is written to stdout as JSON
-- **AND** no markdown file is created
 
 #### Scenario: Analyze subcommand — output file
-- **WHEN** user runs `bichos analyze <path> --output report.json --format json`
-- **THEN** the JSON report is written to `report.json` instead of stdout
+- **WHEN** user runs `bichos analyze <path> --output json`
+- **THEN** the JSON report is written to stdout
+- **NOTE** File output is not yet implemented; JSON goes to stdout only
 
 #### Scenario: Stats subcommand
-- **WHEN** user runs `bichos stats [--path <cache-dir>]`
-- **THEN** the top 10 high-pheromone locations are displayed with intensity scores
-- **AND** agent activity summary is shown
+- **WHEN** user runs `bichos stats <cache-dir>`
+- **THEN** the top 20 high-pheromone locations are displayed with intensity scores
 
 #### Scenario: Stats subcommand with empty cache
-- **WHEN** user runs `bichos stats` and no analysis has been run yet
-- **THEN** message `No pheromone data found. Run 'bichos analyze' first.` is printed to stdout
-- **AND** exit code is 0
+- **WHEN** user runs `bichos stats <cache-dir>` and no pheromones exist
+- **THEN** message `No pheromones found.` is printed to stdout
 
 #### Scenario: Config subcommand
 - **WHEN** user runs `bichos config show`
 - **THEN** resolved configuration is printed (defaults merged with any override file)
-- **AND** bichos searches for config in this priority order: (1) `--config` flag, (2) `./bichos.yaml` in cwd, (3) `~/.config/bichos/config.yaml`
+- **NOTE** Not yet implemented. Configuration is currently passed via `--config` flag to `analyze`.
 
 #### Scenario: Clear-cache subcommand
 - **WHEN** user runs `bichos clear-cache`
 - **THEN** pheromone cache is wiped
-- **AND** message `Pheromone cache cleared.` is printed to stdout
-- **AND** exit code is 0
+- **AND** message is printed to stdout
+- **NOTE** Not yet implemented.
 
-#### Scenario: Clear-cache with no existing cache
-- **WHEN** user runs `bichos clear-cache` and no cache exists at the configured path
-- **THEN** message `No cache found, nothing to clear.` is printed to stdout
-- **AND** exit code is 0
+#### Scenario: Benchmark subcommand
+- **WHEN** user runs `bichos benchmark [--dataset simple|medium|all] [--modes aco,complexity,random] [--seeds N]`
+- **THEN** the swarm is benchmarked across modes and datasets
+- **AND** a summary table with precision, recall, F1, and token usage is printed
+- **AND** optional `--output-file` writes JSON results to disk

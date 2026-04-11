@@ -1,23 +1,25 @@
 # Wasp Guard Agent Specification
 
+> **Implementation status: Planned.** This capability is gated on the Phase 6 go/no-go decision. Configuration values (model, TTL, quorum settings) are defined by `HiveConfig` and `StigmergyConfig`; this spec references illustrative defaults that will be reconciled with the canonical config when implemented.
+
 ## ADDED Requirements
 
 ### Requirement: Security Hydrocarbon Profile Analysis
-The system SHALL analyze code inputs and patterns as "chemical signatures" to detect threats.
+The system SHALL analyze source code regions as "chemical signatures" to detect security anti-patterns and vulnerabilities.
 
-#### Scenario: Analyze function input validation
-- **WHEN** guard analyzes function that accepts user input
-- **THEN** IncomingRequest model contains headers, payload, source_ip fields
-- **AND** chemical profile is checked for anomalies
+#### Scenario: Analyze function for security anti-patterns
+- **WHEN** guard analyzes a code region
+- **THEN** CodeSecurityContext model contains file_path, function_name, source_code, imports, external_inputs fields
+- **AND** chemical profile is checked for security anomalies
 
 #### Scenario: Detect SQL injection pattern
-- **WHEN** input contains SQL keywords without proper escaping
+- **WHEN** source code constructs SQL queries with string concatenation of external inputs
 - **THEN** SecurityVerdict marks is_safe=False
 - **AND** threat_level is set to 9
 - **AND** threat_type is "sql_injection"
 
 #### Scenario: Detect XSS pattern
-- **WHEN** input contains `<script>` tags in untrusted context
+- **WHEN** source code renders user-supplied data without escaping in template output
 - **THEN** SecurityVerdict marks is_safe=False
 - **AND** threat_level is set to 8
 - **AND** threat_type is "xss"
@@ -40,6 +42,12 @@ The system SHALL classify security threats on a scale of 0-10 with reasoning.
 - **THEN** threat_level is 1-3
 - **AND** informational report is created
 
+#### Scenario: No threat (0)
+- **WHEN** code region has no security concerns
+- **THEN** SecurityVerdict marks is_safe=True
+- **AND** threat_level is 0
+- **AND** threat_type is "none"
+
 ### Requirement: Alarm Pheromone System
 The system SHALL propagate security alerts through pheromone deposition and structured logging.
 
@@ -59,17 +67,17 @@ The system SHALL propagate security alerts through pheromone deposition and stru
 - **AND** all other agents become more defensive
 
 ### Requirement: Agent Tool: analyze_hydrocarbon_profile
-The system SHALL provide a tool for threat detection via LLM reasoning.
+The system SHALL provide a tool for threat detection via LLM reasoning over source code.
 
 #### Scenario: Tool returns SecurityVerdict
-- **WHEN** analyze_hydrocarbon_profile(request_data) is called
+- **WHEN** analyze_hydrocarbon_profile(code_context) is called with a CodeSecurityContext
 - **THEN** SecurityVerdict Pydantic model is returned
 - **AND** contains is_safe, threat_level, threat_type, reasoning fields
 
 #### Scenario: Tool uses large context model
-- **WHEN** guard analyzes complex input patterns
-- **THEN** model `google:gemini-1.5-pro` is used for large context window
-- **AND** enables detection of subtle mimicry attacks
+- **WHEN** guard analyzes complex code patterns across a module
+- **THEN** a large-context model is used as configured in HiveConfig
+- **AND** enables detection of subtle vulnerability patterns spanning multiple functions
 
 #### Scenario: Tool validates output schema
 - **WHEN** LLM returns threat analysis
@@ -77,22 +85,17 @@ The system SHALL provide a tool for threat detection via LLM reasoning.
 - **AND** ValidationError prevents hallucinated threat levels
 
 ### Requirement: Agent Tool: release_alarm_pheromone
-The system SHALL provide a tool for broadcasting security alerts.
+The system SHALL provide a tool for broadcasting security alerts with file and function location.
 
 #### Scenario: Deposit alarm pheromone
-- **WHEN** release_alarm_pheromone(verdict, source_ip) is called with threat_level=9
+- **WHEN** release_alarm_pheromone(verdict, file_path, function_name) is called with threat_level=9
 - **THEN** alert pheromone is deposited with intensity 45.0
 - **AND** TTL is set to 24 hours
 
 #### Scenario: Structured logging for alerting
 - **WHEN** alarm is released
-- **THEN** Loguru log entry includes: threat_level, source_ip, reasoning, timestamp
+- **THEN** Loguru log entry includes: threat_level, file_path, function_name, reasoning, timestamp
 - **AND** log level is ERROR for threat_level > 7
-
-#### Scenario: Optional defensive action
-- **WHEN** alarm is released and firewall integration is configured
-- **THEN** IP blocking can be triggered (disabled by default)
-- **AND** action is logged
 
 ### Requirement: Agent Tool: scan_for_vulnerabilities
 The system SHALL provide a tool for static security analysis of code.
@@ -100,20 +103,20 @@ The system SHALL provide a tool for static security analysis of code.
 #### Scenario: Scan for hardcoded secrets
 - **WHEN** code contains strings matching pattern "password = 'secret123'"
 - **THEN** vulnerability is flagged with type="hardcoded_secret"
-- **AND** severity is set to 9
+- **AND** threat_level is set to 9
 
 #### Scenario: Scan for unsafe deserialization
 - **WHEN** code uses `pickle.loads()` on untrusted input
 - **THEN** vulnerability is flagged with type="unsafe_deserialization"
-- **AND** severity is set to 10
+- **AND** threat_level is set to 10
 
 #### Scenario: Scan for missing authentication
 - **WHEN** API endpoint has no authentication decorator
 - **THEN** vulnerability is flagged with type="missing_auth"
-- **AND** severity is set to 8
+- **AND** threat_level is set to 8
 
 ### Requirement: Quorum Sensing for Consensus (Opt-In)
-The system SHALL optionally use multiple guard agents with different models to reduce false positives. Quorum sensing is disabled by default (single model) due to cost multiplier (~5x per security check). Enable via `wasp.quorum_sensing: true` in config.
+The system SHALL optionally use multiple guard agents with different models to reduce false positives. Quorum sensing is disabled by default (single model) due to cost multiplier (~3-5x per security check, depending on quorum_size). Enable via `wasp.quorum_sensing: true` in config.
 
 #### Scenario: Default single-model analysis
 - **WHEN** quorum_sensing is disabled (default)
@@ -122,7 +125,7 @@ The system SHALL optionally use multiple guard agents with different models to r
 
 #### Scenario: Opt-in quorum with 3 guard wasps
 - **WHEN** quorum_sensing is enabled with quorum_size=3
-- **THEN** 3 wasp agents are spawned (using configured model + 2 alternates)
+- **THEN** 3 wasp agents are spawned using the configured model
 - **AND** each returns independent SecurityVerdict
 - **AND** cost is ~3x single-model analysis
 
@@ -142,7 +145,7 @@ The system SHALL configure wasp agents with large-context LLM models.
 
 #### Scenario: Agent uses large context model
 - **WHEN** guard agent is initialized
-- **THEN** it uses `google:gemini-1.5-pro` (1M token context)
+- **THEN** it uses a large-context model as configured in HiveConfig (e.g. `openai:gpt-4o` or a Gemini model when supported)
 - **AND** system prompt instructs it to analyze security threats
 
 #### Scenario: Agent has access to security config
@@ -166,15 +169,16 @@ The system SHALL use 24-hour TTL for security alert pheromones.
 ### Requirement: Defense Coordination
 The system SHALL coordinate defensive responses across multiple wasp agents.
 
-#### Scenario: Swarm focuses on breached module
+#### Scenario: Swarm focuses on vulnerable module
 - **WHEN** multiple alerts are detected in module "auth"
 - **THEN** more wasps are allocated to inspect "auth"
 - **AND** intensive scanning is performed
 
 #### Scenario: Defensive posture escalates
 - **WHEN** hive_state is "ALERT_MODE"
-- **THEN** all wasps increase scrutiny threshold
-- **AND** lower threat_level triggers alarms
+- **THEN** all wasps lower their reporting threshold
+- **AND** findings that would normally be informational are escalated to warnings
+- **NOTE** This is a reporting posture change, not a defensive action — no code is modified
 
 ### Requirement: Read-Only Security Analysis
 The system SHALL only report vulnerabilities without taking defensive actions.
@@ -184,12 +188,7 @@ The system SHALL only report vulnerabilities without taking defensive actions.
 - **THEN** report is generated with fix suggestions
 - **AND** no source code is modified
 
-#### Scenario: No network blocking by default
-- **WHEN** threat is detected from IP address
-- **THEN** alert is logged
-- **AND** IP is NOT blocked unless explicitly configured
-
-#### Scenario: User applies fixes manually
+#### Scenario: Report-only output
 - **WHEN** analysis completes
-- **THEN** SecurityReport contains all vulnerabilities
+- **THEN** SecurityReport contains all vulnerabilities with file paths and function locations
 - **AND** user reviews and applies fixes

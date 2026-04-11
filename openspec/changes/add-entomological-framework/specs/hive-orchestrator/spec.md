@@ -16,7 +16,7 @@ The system SHALL use pydantic_graph to coordinate multi-phase analysis workflows
 
 #### Scenario: Parallel agent execution via asyncio.gather
 - **WHEN** SplitNode is executed
-- **THEN** ant, bee, termite, wasp agents run concurrently via asyncio.gather() within a single pydantic_graph node
+- **THEN** one ant task per function node is spawned via asyncio.gather(), bounded by a semaphore of size ant_count
 - **AND** each agent is an asyncio task sharing the event loop
 - **AND** all complete (or timeout) before transition to JoinNode
 - **NOTE** Uses stable pydantic_graph API (not beta parallel API). Parallelism is achieved via asyncio.gather() inside the SplitNode's run() method, not via pydantic_graph's node-level parallelism
@@ -45,8 +45,9 @@ The system SHALL allocate agent counts per caste based on configuration and adap
 
 #### Scenario: Default allocation
 - **WHEN** no specific allocation is configured
-- **THEN** 10 ants, 5 bees, 5 termites, 3 wasps are spawned
-- **AND** total swarm size is 23 agents
+- **THEN** 5 ant forager agents are spawned (default `ant_count`)
+- **AND** bee, termite, and wasp agents are spawned when their castes are implemented
+- **NOTE** Current implementation supports ant agents only. Default `ant_count=5`.
 
 #### Scenario: Custom allocation
 - **WHEN** config specifies {"ants": 20, "bees": 10, "termites": 5, "wasps": 5}
@@ -90,19 +91,24 @@ The system SHALL collect and merge results from all agent castes via Join node.
 - **WHEN** bees return WaggleDance objects
 - **THEN** PerformanceReport is generated with ranked bottlenecks
 - **AND** min/max/avg latencies are calculated
+- **NOTE** Bee scout agents are not yet implemented.
 
 #### Scenario: Aggregate refactoring suggestions
 - **WHEN** termites propose refactorings
 - **THEN** suggestions are grouped by module
 - **AND** ordered by curvature score (descending)
+- **NOTE** Termite builder agents are not yet implemented.
 
 #### Scenario: Aggregate security findings
 - **WHEN** wasps report vulnerabilities
 - **THEN** findings are ranked by threat_level
 - **AND** critical issues are highlighted
+- **NOTE** Wasp guard agents are not yet implemented.
 
 ### Requirement: Feedback Loop and Adaptive Behavior
 The system SHALL adjust swarm behavior based on intermediate findings via Decision node.
+
+> **Implementation status: Planned.** The current orchestrator uses a linear Init → Split → Join → Report flow without adaptive feedback. DecisionNode is planned for post-tracer-bullet phases.
 
 #### Scenario: Emergency mode for critical bugs
 - **WHEN** critical_bug_count > 10
@@ -133,9 +139,9 @@ The system SHALL produce comprehensive AnalysisReport combining all findings.
 
 #### Scenario: Report output formats
 - **WHEN** report is generated
-- **THEN** it is available as JSON (machine-readable)
-- **AND** as Markdown (human-readable)
-- **AND** as HTML (web viewable)
+- **THEN** it is available as JSON (machine-readable) via `--output json`
+- **AND** as a Rich table (terminal-friendly) by default
+- **NOTE** Markdown and HTML output formats are planned but not yet implemented.
 
 #### Scenario: Report includes metrics
 - **WHEN** report is generated

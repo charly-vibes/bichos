@@ -103,7 +103,7 @@ All agent concurrency uses Python's `asyncio` event loop on a single thread. Thi
 ```python
 from diskcache import Cache
 cache = Cache('/tmp/bichos-pheromones')
-cache.set('bug:path:hash123', {'severity': 9}, expire=604800)  # 7 days TTL
+cache.set('bug:path:hash123', {'severity': 9}, expire=86400)  # 1 day TTL
 ```
 
 ### Decision 2: Loguru over Pydantic Logfire for Observability
@@ -393,7 +393,7 @@ class AdaptiveACO:
 
 | Bottleneck | V1 Mitigation | V2+ Optimization |
 |------------|---------------|------------------|
-| LLM latency | Use faster models for non-critical agents (Bees = GPT-3.5) | Batch LLM requests, use local Llama models |
+| LLM latency | Use faster models for non-critical agents (Bees = GPT-4o-mini) | Batch LLM requests, use local Llama models |
 | Pheromone I/O | In-memory LRU cache layer | Redis or partitioned diskcache |
 | Graph construction | Cache graph between runs (invalidate on file changes) | Incremental graph updates |
 | AST parsing | Parallel parsing via multiprocessing | Cache ASTs, use Tree-sitter (faster than Python ast) |

@@ -46,12 +46,22 @@ htmlcov/
 # Bichos specific
 /tmp/bichos-*/
 bichos-*.log
+bichos_*.log
 
 # Tool directories
 .beads/
-.claude/settings.local.json   # personal machine settings, not project config
+.claude/settings.local.json
+.claude/worktrees/
 .wai/
+.codex
 
 # OS
 .DS_Store
 Thumbs.db
+
+# Dolt database files (added by bd init)
+.dolt/
+*.db
+
+# Beads / Dolt files (added by bd init)
+.beads-credential-key

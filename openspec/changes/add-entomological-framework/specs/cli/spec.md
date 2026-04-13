@@ -1,3 +1,5 @@
+# CLI Specification
+
 ## ADDED Requirements
 
 <!--
@@ -96,13 +98,9 @@ The CLI SHALL expose subcommands covering the primary workflows. Command surface
 - **THEN** a hive analysis is launched on the target path
 - **AND** on completion a summary table is printed to stdout
 
-#### Scenario: Analyze subcommand — custom output format
+#### Scenario: Analyze subcommand — JSON output
 - **WHEN** user runs `bichos analyze <path> --output json`
 - **THEN** the analysis report is written to stdout as JSON
-
-#### Scenario: Analyze subcommand — output file
-- **WHEN** user runs `bichos analyze <path> --output json`
-- **THEN** the JSON report is written to stdout
 - **NOTE** File output is not yet implemented; JSON goes to stdout only
 
 #### Scenario: Stats subcommand

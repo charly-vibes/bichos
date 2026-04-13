@@ -9,7 +9,7 @@ The system SHALL use structured Pydantic models to communicate performance analy
 
 #### Scenario: Scout reports function performance characteristics
 - **WHEN** scout analyzes function "process_data()"
-- **THEN** WaggleDance model contains function_name, estimated_complexity (Big-O), anti_pattern_type, complexity_score
+- **THEN** WaggleDance model contains function_name, estimated_complexity (Big-O string), anti_pattern_type, complexity_score (numeric 1-100 derived from Big-O class and function LOC), error (str | None)
 - **AND** investigation_priority is calculated as complexity_score * (1 + anti_pattern_count)
 
 #### Scenario: High complexity equals high investigation priority
@@ -49,6 +49,7 @@ The system SHALL allocate forager bees proportionally to module investigation_pr
 - **WHEN** module has investigation_priority 0 (no anti-patterns found)
 - **THEN** at least 1 bee is still allocated
 - **AND** ensures coverage of all modules
+- **NOTE** Remaining bees after floored proportional allocation are assigned round-robin to highest-priority modules
 
 #### Scenario: Roulette wheel selection
 - **WHEN** bee recruitment uses random.choices() with investigation_priority weights
@@ -65,7 +66,7 @@ The system SHALL provide a tool for static performance analysis of source code.
 
 #### Scenario: Handle analysis failures gracefully
 - **WHEN** function source cannot be parsed or analyzed
-- **THEN** error is recorded in the WaggleDance result
+- **THEN** the `error` field of the WaggleDance result is populated with the failure description
 - **AND** exception details are logged
 
 ### Requirement: Agent Tool: recruit_foragers

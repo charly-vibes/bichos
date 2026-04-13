@@ -14,7 +14,8 @@ The system SHALL parse Python source files into a NetworkX DiGraph where functio
 #### Scenario: Node metadata includes required fields
 - **WHEN** a function or class node is added to the graph
 - **THEN** its `NodeMeta` MUST include: `name`, `qualified_name`, `file_path`, `lineno`, `loc`, and `complexity`
-- **AND** `qualified_name` follows the pattern `module.path.function_name`
+- **AND** `qualified_name` follows the pattern `module.path.function_name` (or `module.path.ClassName` for classes)
+- **NOTE** Class methods and nested functions use `module.path.name` where `name` is the immediate definition name. Collisions between same-named methods in different classes (e.g. `auth.validate` from both `User.validate` and `Admin.validate`) are a known limitation.
 - **AND** `loc` is computed as `end_lineno - lineno + 1`
 
 #### Scenario: Edge metadata includes call_count

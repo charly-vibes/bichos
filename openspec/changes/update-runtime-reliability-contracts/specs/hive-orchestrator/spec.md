@@ -5,8 +5,9 @@ The system SHALL allocate agent counts per caste based on configuration and adap
 
 #### Scenario: Default allocation
 - **WHEN** no specific allocation is configured
-- **THEN** 10 ants, 5 bees, 5 termites, 3 wasps are spawned
-- **AND** total swarm size is 23 agents
+- **THEN** 5 ant forager agents are spawned (default `ant_count`)
+- **AND** bee, termite, and wasp agents are spawned when their castes are implemented
+- **NOTE** Current implementation supports ant agents only. Default `ant_count=5`.
 
 #### Scenario: Custom allocation
 - **WHEN** config specifies {"ants": 20, "bees": 10, "termites": 5, "wasps": 5}

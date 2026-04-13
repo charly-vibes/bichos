@@ -88,10 +88,10 @@
   - [ ] `PerformanceReport` aggregate model
 - [ ] 5.2 Create `bichos/agents/bee/agent.py` with PydanticAI agent
   - [ ] Define scout agent with system prompt
-  - [ ] Set model to `openai:gpt-3.5-turbo` (fast, cheap)
+  - [ ] Set model to `openai:gpt-4o-mini` (fast, cheap)
 - [ ] 5.3 Implement bee tools in `bichos/agents/bee/tools.py`
-  - [ ] `@agent.tool probe_endpoint()` for latency measurement
-  - [ ] `@agent.tool recruit_foragers()` for load generation
+  - [ ] `@agent.tool probe_function()` for static performance analysis
+  - [ ] `@agent.tool recruit_foragers()` for deeper module analysis
   - [ ] `@agent.tool aggregate_results()` for waggle dance interpretation
 - [ ] 5.4 Create `bichos/agents/bee/recruitment.py` for swarm allocation
   - [ ] Proportional allocation based on profitability
@@ -99,7 +99,7 @@
 - [ ] 5.5 Write unit tests for bee agent
   - [ ] Test waggle dance probability
   - [ ] Test recruitment allocation
-- [ ] 5.6 Create integration test: bee swarm on mock API
+- [ ] 5.6 Create integration test: bee swarm on sample codebase
 
 ## 6. Termite Builder Agent
 
@@ -136,13 +136,13 @@
   - [ ] `AlarmPheromone` model
 - [ ] 7.2 Create `bichos/agents/wasp/agent.py` with PydanticAI agent
   - [ ] Define guard agent with system prompt
-  - [ ] Set model to `google:gemini-1.5-pro` (large context)
+  - [ ] Set model to configured large-context model (e.g. `openai:gpt-4o`)
 - [ ] 7.3 Implement wasp tools in `bichos/agents/wasp/tools.py`
   - [ ] `@agent.tool analyze_hydrocarbon_profile()` for threat detection
   - [ ] `@agent.tool release_alarm_pheromone()` for alerting
   - [ ] `@agent.tool scan_for_vulnerabilities()` for code inspection
 - [ ] 7.4 Create `bichos/agents/wasp/quorum.py` for multi-agent consensus
-  - [ ] Spawn multiple guard agents with different models
+  - [ ] Spawn multiple guard agents using the configured model
   - [ ] Aggregate verdicts (require 3/5 agreement)
 - [ ] 7.5 Write unit tests for wasp agent
   - [ ] Test threat detection on known vulnerabilities

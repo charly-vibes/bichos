@@ -122,9 +122,9 @@ The system SHALL adjust swarm behavior based on intermediate findings via Decisi
 - **AND** ensures broader code path coverage
 
 #### Scenario: Performance bottleneck triggers bee recruitment
-- **WHEN** > 5 endpoints have latency > 1000ms
+- **WHEN** > 5 functions have high complexity scores
 - **THEN** DecisionNode spawns additional bees
-- **AND** intensifies load testing
+- **AND** intensifies static performance analysis
 
 ### Requirement: Final Report Generation
 The system SHALL produce comprehensive AnalysisReport combining all findings.
@@ -158,7 +158,7 @@ The system SHALL use typed configuration for all hive parameters.
 
 #### Scenario: Config includes all parameters
 - **WHEN** HiveConfig is instantiated
-- **THEN** it contains: agent_counts (dict), pheromone_params (evaporation rates), llm_models (per caste), analysis_timeout (seconds)
+- **THEN** it contains: ant_count (int), model (ModelConfig), aco (ACOConfig), stigmergy (StigmergyConfig), max_files (int), max_tokens_per_ant (int), min_confidence (float)
 
 ### Requirement: Swarm State Management
 The system SHALL maintain global state accessible to all agents via GraphRunContext.
@@ -192,7 +192,7 @@ The system SHALL handle failures without crashing the entire analysis.
 
 #### Scenario: Single agent failure doesn't stop swarm
 - **WHEN** 1 ant agent crashes
-- **THEN** other 9 ants continue working
+- **THEN** remaining ants continue working
 - **AND** final report notes partial results with degraded_agents count
 - **AND** coverage metrics are adjusted to reflect reduced agent count
 

@@ -133,6 +133,7 @@ The system SHALL optionally use multiple guard agents with different models to r
 - **WHEN** verdicts are [unsafe, unsafe, safe]
 - **THEN** quorum consensus is "unsafe" (2/3 majority)
 - **AND** action is taken based on majority vote
+- **NOTE** In case of tie (even quorum size), the more conservative verdict (unsafe) wins
 
 #### Scenario: Quorum reduces false positives
 - **WHEN** one model hallucinates a threat

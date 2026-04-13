@@ -28,7 +28,7 @@ The system SHALL detect potential bugs through code analysis and report them via
 #### Scenario: Detect missing None check
 - **WHEN** ant analyzes code path with potential None dereference
 - **THEN** bug report is created with severity 7, location, and description
-- **AND** pheromone is deposited with intensity = severity * 5
+- **AND** pheromone is deposited with intensity proportional to severity and confidence
 
 #### Scenario: Detect race condition
 - **WHEN** ant finds unsynchronized access to shared state
@@ -154,7 +154,7 @@ The system SHALL reduce false positive bug reports through confidence thresholds
 - **AND** swarm attention naturally moves away
 
 #### Scenario: Configurable confidence threshold
-- **WHEN** user sets `ant.confidence_threshold: 0.8` in config
+- **WHEN** user sets `min_confidence: 0.8` in config
 - **THEN** only findings with >= 80% confidence deposit pheromones
 - **AND** default is 0.7 (70%)
 

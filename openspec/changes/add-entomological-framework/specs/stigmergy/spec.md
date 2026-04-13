@@ -21,9 +21,9 @@ The system SHALL provide type-safe Pydantic models for all pheromone types used 
 The system SHALL use diskcache to store pheromones with automatic TTL-based expiration.
 
 #### Scenario: Store and retrieve pheromone
-- **WHEN** a pheromone is deposited with key "bug:path:hash123" and 7-day TTL
-- **THEN** it can be retrieved within 7 days
-- **AND** it automatically expires after 7 days
+- **WHEN** a pheromone is deposited with key "bug:path:hash123" and configured TTL
+- **THEN** it can be retrieved within the TTL period
+- **AND** it automatically expires after the TTL elapses
 
 #### Scenario: Batch pheromone reads
 - **WHEN** wildcard pattern "bug:path:*" is used to query pheromones
@@ -97,8 +97,8 @@ The system SHALL isolate pheromone caches per analysis session and provide clean
 
 #### Scenario: Manual cache clearing
 - **WHEN** user runs `bichos clear-cache` command
-- **THEN** all expired pheromones are removed
-- **AND** summary of cleared items is displayed
+- **THEN** all pheromones are removed (full wipe)
+- **AND** confirmation message is displayed
 
 #### Scenario: Automatic eviction for memory limits
 - **WHEN** cache size exceeds configured limit (default 100MB)

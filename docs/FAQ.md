@@ -13,7 +13,7 @@ Traditional deterministic tools often struggle with the complexity of modern sof
 - **Efficiency**: Stigmergic coordination reduces communication overhead and token usage.
 
 ### Is *bichos* ready for production?
-Currently, the project is in the **Specification/Proposal stage**. The core architecture and ant-based bug hunting are being implemented, while other castes (Bees, Termites, Wasps) are planned. See the [Project Status](../README.md#📋-project-status) for more details.
+Currently, the project is in the **Specification/Proposal stage**. The core architecture and ant-based bug hunting are being implemented, while other castes (Bees, Termites, Wasps) are planned. See the [Project Status](../README.md#-project-status) for more details.
 
 ---
 

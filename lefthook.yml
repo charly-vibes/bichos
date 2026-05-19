@@ -1,0 +1,31 @@
+# lefthook.yml - pre-commit/pre-push hooks
+#
+# Install: lefthook install
+# Bypass (WIP only): git push --no-verify
+#
+# ⚠️  --no-verify requires:
+#   - Commit message MUST contain "WIP" or "wip"
+#   - Tests MUST be fixed before merging
+
+pre-commit:
+  parallel: true
+  commands:
+    lint:
+      glob: "*.py"
+      run: just lint
+    typecheck:
+      glob: "*.py"
+      run: just typecheck
+
+pre-push:
+  commands:
+    test:
+      run: just test
+      fail_text: |
+        ❌ Tests failed. Push blocked.
+
+        To bypass (WIP only): git push --no-verify
+
+        ⚠️  --no-verify requires justification:
+        - Commit message MUST contain "WIP" or "wip"
+        - You MUST fix tests before merging

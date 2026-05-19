@@ -48,15 +48,15 @@ spec:
 # Set up dev environment (deps + git hooks)
 setup:
     uv sync --all-extras
-    prek install -t pre-commit -t pre-push
+    lefthook install
 
-# Install git hooks via prek
+# Install git hooks via lefthook
 hooks:
-    prek install -t pre-commit -t pre-push
+    lefthook install
 
 # Run git hooks against all files
 hooks-run:
-    prek run --all-files
+    lefthook run pre-commit
 
 # Show wai project status
 status:

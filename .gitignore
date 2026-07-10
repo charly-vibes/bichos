@@ -65,3 +65,8 @@ Thumbs.db
 
 # Beads / Dolt files (added by bd init)
 .beads-credential-key
+
+# Beads internal state (track only issues.jsonl for backup)
+.beads/*
+!.beads/issues.jsonl
+!.beads/config.yaml

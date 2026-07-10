@@ -49,7 +49,6 @@ bichos-*.log
 bichos_*.log
 
 # Tool directories
-.beads/
 .claude/settings.local.json
 .claude/worktrees/
 .wai/
